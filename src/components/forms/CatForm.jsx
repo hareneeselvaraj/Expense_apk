@@ -1,0 +1,106 @@
+import React, { useState, useEffect } from "react";
+import { Ico } from "../ui/Ico.jsx";
+import { Btn } from "../ui/Btn.jsx";
+import { uid } from "../../utils/id.js";
+
+export function CatForm({ editCat, onSave, onCancel, theme }) {
+  const C = theme;
+  const [name, setName] = useState(editCat?.name || "");
+  const [type, setType] = useState(editCat?.type || "Expense");
+  const [color, setColor] = useState(editCat?.color || "#3b82f6");
+  const [emoji, setEmoji] = useState(editCat?.emoji || "📦");
+
+  const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#10b981", "#06b6d4", "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#64748b"];
+  
+  const emojiSets = {
+    Expense: ["🍔", "🛒", "🛍️", "🚗", "🎬", "🏥", "⚡", "🎓", "💵", "📦", "🍕", "🍹", "✈️", "🏠", "🎁", "📱", "💻", "🎨", "🎮", "👕", "🚕", "🚲", "☕", "🍿", "🏀"],
+    Income: ["💰", "📈", "🏦", "💳", "🧧", "💸", "💹", "🏢", "🤝", "🎉", "🔥"],
+    Investment: ["💎", "🧱", "🏠", "🪙", "📊", "🚀", "🏦", "📉", "🛡️", "🧬"]
+  };
+  
+  const emojis = emojiSets[type] || emojiSets.Expense;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSave({
+      id: editCat?.id || uid(),
+      name: name.trim(),
+      type,
+      color,
+      emoji
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{padding:24, display:"flex", flexDirection:"column", gap:24}}>
+      <div style={{display:"flex", gap:20, alignItems:"center"}}>
+        <div style={{
+          width:64, height:64, borderRadius:20, background:`linear-gradient(135deg, ${color}33, ${color}11)`,
+          display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${color}66`,
+          fontSize:32, boxShadow:`0 10px 20px ${color}22`, backdropFilter:"blur(10px)"
+        }}>
+          {emoji}
+        </div>
+        <div style={{flex:1}}>
+          <label style={{color:C.sub, fontSize:10, fontWeight:900, textTransform:"uppercase", letterSpacing:".1em"}}>Category Name</label>
+          <input 
+            autoFocus
+            value={name}
+            onChange={e=>setName(e.target.value)}
+            placeholder="e.g. Shopping"
+            style={{
+              width:"100%", background:"none", border:"none", borderBottom:`2px solid ${C.border}`,
+              color:C.text, fontSize:22, fontWeight:800, padding:"8px 0", outline:"none",
+              transition:"border-color .3s"
+            }}
+            onFocus={e=>e.target.style.borderColor=C.primary}
+            onBlur={e=>e.target.style.borderColor=C.border}
+          />
+        </div>
+      </div>
+
+      <div style={{display:"flex", background:C.input, borderRadius:16, padding:4, border:`1px solid ${C.border}`}}>
+        {["Expense", "Income", "Investment"].map(t => (
+          <button key={t} type="button" onClick={()=>setType(t)} style={{
+            flex:1, padding:10, borderRadius:12, border:"none", cursor:"pointer",
+            fontSize:11, fontWeight:800, textTransform:"uppercase",
+            background:type===t?C.primary:"transparent",
+            color:type===t?"#000":C.sub,
+            transition:"all .3s"
+          }}>{t}</button>
+        ))}
+      </div>
+
+      <div>
+        <label style={{color:C.sub, fontSize:10, fontWeight:900, textTransform:"uppercase", letterSpacing:".1em", display:"block", marginBottom:12}}>Identity Color</label>
+        <div style={{display:"flex", flexWrap:"wrap", gap:10}}>
+          {colors.map(c => (
+            <button key={c} type="button" onClick={()=>setColor(c)} style={{
+              width:32, height:32, borderRadius:"50%", background:c, border:color===c?`3px solid #fff`:`2px solid transparent`,
+              cursor:"pointer", transition:"transform .2s", boxShadow:color===c?`0 0 15px ${c}`:"none"
+            }} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.2)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}/>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label style={{color:C.sub, fontSize:10, fontWeight:900, textTransform:"uppercase", letterSpacing:".1em", display:"block", marginBottom:12}}>Visual Icon</label>
+        <div style={{display:"flex", flexWrap:"wrap", gap:8, maxHeight:120, overflowY:"auto", paddingRight:4}} className="premium-scroll">
+          {emojis.map(e => (
+            <button key={e} type="button" onClick={()=>setEmoji(e)} style={{
+              width:40, height:40, borderRadius:10, background:emoji===e?C.primaryDim:"transparent",
+              border:emoji===e?`1px solid ${C.primary}`:`1px solid ${C.border}`,
+              fontSize:20, cursor:"pointer", transition:"all .2s"
+            }}>{e}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginTop:8}}>
+        <Btn theme={C} v="ghost" full onClick={onCancel}>Cancel</Btn>
+        <Btn theme={C} v="primary" full type="submit">Save Category</Btn>
+      </div>
+    </form>
+  );
+}

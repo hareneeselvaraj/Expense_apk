@@ -1,0 +1,610 @@
+
+import React, { useState, useEffect, useMemo, useRef } from "react";
+
+// Constants
+import { THEMES, BASE_C } from "./constants/theme.js";
+import { DEF_CATS, DEF_TAGS, BLANK_TX } from "./constants/defaults.js";
+import { CLIENT_ID } from "./constants/config.js";
+
+// Services
+import { dbGet, dbSet } from "./services/localDb.js";
+import { driveService } from "./services/driveService.js";
+
+// Utils
+import { uid } from "./utils/id.js";
+import { todayISO, fmtAmt } from "./utils/format.js";
+import { exportCSV } from "./utils/csvExport.js";
+import { exportTransactionsPDF } from "./utils/pdf.js";
+import { getNetWorth, getDayFlow, getSummary } from "./utils/analytics.js";
+
+// Components UI
+import { Modal } from "./components/ui/Modal.jsx";
+import { Toast } from "./components/ui/Toast.jsx";
+import { Ico } from "./components/ui/Ico.jsx";
+
+// Layout
+import { Header } from "./components/layout/Header.jsx";
+import { BottomNav } from "./components/layout/BottomNav.jsx";
+
+// Pages
+import Dashboard from "./pages/Dashboard.jsx";
+import TransactionsPage from "./pages/Transactions.jsx";
+import ReportsPage from "./pages/Reports.jsx";
+import OrganizePage from "./pages/Organize.jsx";
+import VaultPage from "./pages/Vault.jsx";
+import SettingsPage from "./pages/Settings.jsx";
+
+// Forms
+import { TxForm } from "./components/forms/TxForm.jsx";
+import { CatForm } from "./components/forms/CatForm.jsx";
+import { TagForm } from "./components/forms/TagForm.jsx";
+import { BudgetForm } from "./components/forms/BudgetForm.jsx";
+import { AccForm } from "./components/forms/AccForm.jsx";
+
+const globalStyles = `
+  @keyframes pulse-neon {
+    0%, 100% { transform: scale(1); opacity: 0.1; }
+    50% { transform: scale(1.1); opacity: 0.15; }
+  }
+  @keyframes fadeInUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+`;
+
+export default function App() {
+  // ── STATE ──────────────────────────────────────────────────────────────────
+  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState(null);
+  const [themeMode, setThemeMode] = useState(localStorage.getItem("theme") || "dark");
+  const [page, setPage] = useState("dashboard");
+  const [toast, setToast] = useState(null);
+
+  // Data
+  const [transactions, setTransactions] = useState([]);
+  const [categories, setCategories] = useState(DEF_CATS);
+  const [tags, setTags] = useState(DEF_TAGS);
+  const [accounts, setAccounts] = useState([]);
+  const [budgets, setBudgets] = useState([]);
+  const [rules, setRules] = useState([]);
+
+  // UI State
+  const [viewDate, setViewDate] = useState(new Date());
+  const [addTx, setAddTx] = useState(false);
+  const [editTx, setEditTx] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [selectedTxIds, setSelectedTxIds] = useState([]);
+  const [filters, setFilters] = useState({ from: "", to: "", cat: "", tags: [], acc: "", type: "", cd: "" });
+
+  const [organizeTab, setOrganizeTab] = useState("categories");
+  const [reportTab, setReportTab] = useState("month");
+  const [reportsMode, setReportsMode] = useState("category");
+  const [reportsSubTab, setReportsSubTab] = useState("breakdown");
+  const [reportDate, setReportDate] = useState(new Date());
+
+  const [syncStatus, setSyncStatus] = useState("synced");
+  const [showBackup, setShowBackup] = useState(false);
+  const [addCat, setAddCat] = useState(false);
+  const [editCat, setEditCat] = useState(null);
+  const [addTag, setAddTag] = useState(false);
+  const [editTag, setEditTag] = useState(null);
+  const [editBudget, setEditBudget] = useState(null);
+  const [addAcc, setAddAcc] = useState(false);
+
+  const isModalOpen = !!(addTx || editTx || showBackup || showFilters || addCat || editCat || addTag || editTag || editBudget || addAcc);
+  const driveTokenRef = useRef(null);
+  const [driveFiles, setDriveFiles] = useState([]);
+  const [driveStep, setDriveStep] = useState(null);
+  const gInitRef = useRef(false);
+
+  const C = useMemo(() => ({ ...THEMES[themeMode], ...BASE_C }), [themeMode]);
+
+  // ── PERSISTENCE ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const load = async () => {
+      const d = await dbGet("data");
+      if (d) {
+        if (d.transactions) setTransactions(d.transactions);
+        if (d.categories) setCategories(d.categories);
+        if (d.tags) setTags(d.tags);
+        if (d.accounts) setAccounts(d.accounts);
+        if (d.budgets) setBudgets(d.budgets);
+        if (d.rules) setRules(d.rules);
+      }
+      setReady(true);
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    dbSet("data", { transactions, categories, tags, accounts, budgets, rules });
+    setSyncStatus("pending");
+    const t = setTimeout(() => setSyncStatus("synced"), 1000);
+    return () => clearTimeout(t);
+  }, [transactions, categories, tags, accounts, budgets, rules, ready]);
+
+  // Repair categories (Inject missing emojis from DEF_CATS)
+  useEffect(() => {
+    if (!ready || !categories.length) return;
+    const hasMissing = categories.some(c => !c.emoji && DEF_CATS.find(d => d.id === c.id)?.emoji);
+    if (hasMissing) {
+      setCategories(prev => prev.map(c => {
+        const def = DEF_CATS.find(d => d.id === c.id);
+        if (def && !c.emoji) return { ...c, emoji: def.emoji };
+        return c;
+      }));
+    }
+  }, [ready, categories]);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+  }, [isModalOpen]);
+
+  // ── AUTH ──────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!ready || user || !window.google || gInitRef.current) return;
+
+    const initG = () => {
+      gInitRef.current = true;
+      window.google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: (resp) => {
+          const payload = JSON.parse(atob(resp.credential.split(".")[1].replace(/-/g, '+').replace(/_/g, '/')));
+          const userData = { name: payload.name, email: payload.email, picture: payload.picture };
+          setUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+        }
+      });
+      const btn = document.getElementById("googleBtn");
+      if (btn) window.google.accounts.id.renderButton(btn, { theme: "outline", size: "large", shape: "pill" });
+    };
+
+    const saved = localStorage.getItem("user");
+    if (saved) {
+      setUser(JSON.parse(saved));
+    } else {
+      initG();
+    }
+  }, [ready, user]);
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("user");
+    setTimeout(() => window.google?.accounts.id.renderButton(document.getElementById("googleBtn"), { theme: "outline", size: "large", shape: "pill" }), 100);
+  };
+
+  // ── ACTIONS ────────────────────────────────────────────────────────────────
+  const notify = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSaveTx = (data) => {
+    const txs = Array.isArray(data) ? data : [data];
+    setTransactions(prev => {
+      let next = [...prev];
+      txs.forEach(t => {
+        const idx = next.findIndex(x => x.id === t.id);
+        if (idx > -1) next[idx] = t;
+        else next = [t, ...next];
+      });
+      return next;
+    });
+    setAddTx(false);
+    setEditTx(null);
+    notify("✓ Saved");
+  };
+
+  const handleDeleteTx = (id) => {
+    setTransactions(prev => prev.filter(t => t.id !== id));
+    setEditTx(null);
+    notify("✓ Deleted");
+  };
+
+  const toggleTheme = () => {
+    const next = themeMode === "dark" ? "light" : "dark";
+    setThemeMode(next);
+    localStorage.setItem("theme", next);
+  };
+
+  // ── SYNC ──────────────────────────────────────────────────────────────────
+  const saveToDrive = async () => {
+    setDriveStep("saving");
+    try {
+      await driveService.saveToDrive(CLIENT_ID, driveTokenRef, { transactions, categories, tags, accounts, budgets, rules });
+      notify("✓ Saved to Google Drive");
+    } catch (err) {
+      notify(err.message, "error");
+    }
+    setDriveStep(null);
+  };
+
+  const listDriveBackups = async () => {
+    setDriveStep("fetching");
+    try {
+      const files = await driveService.listBackups(CLIENT_ID, driveTokenRef);
+      setDriveFiles(files);
+      setDriveStep("list");
+    } catch (err) {
+      notify(err.message, "error");
+      setDriveStep(null);
+    }
+  };
+
+  const restoreFromDrive = async (fileId) => {
+    setDriveStep("restoring");
+    try {
+      const data = await driveService.restoreFromDrive(CLIENT_ID, driveTokenRef, fileId);
+      if (data.transactions) setTransactions(data.transactions);
+      if (data.categories) setCategories(data.categories);
+      if (data.tags) setTags(data.tags);
+      if (data.accounts) setAccounts(data.accounts);
+      if (data.budgets) setBudgets(data.budgets);
+      if (data.rules) setRules(data.rules);
+      notify("✓ Data Restored Successfully");
+      setShowBackup(false);
+    } catch (err) {
+      notify(err.message, "error");
+    }
+    setDriveStep(null);
+  };
+
+  // ── ANALYTICS ─────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const mo = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getMonth() === viewDate.getMonth() && d.getFullYear() === viewDate.getFullYear();
+    });
+    const income = mo.filter(t => t.txType === "Income").reduce((s, t) => s + t.amount, 0);
+    const expense = mo.filter(t => t.txType === "Expense").reduce((s, t) => s + t.amount, 0);
+    const invest = mo.filter(t => t.txType === "Investment").reduce((s, t) => s + t.amount, 0);
+    const catMap = {};
+    mo.forEach(t => {
+      const c = categories.find(x => x.id === t.category)?.name || "Others";
+      catMap[c] = (catMap[c] || 0) + t.amount;
+    });
+    return { income, expense, invest, catMap };
+  }, [transactions, categories, viewDate]);
+
+  const nw = getNetWorth(accounts, transactions);
+
+  const filteredTx = useMemo(() => {
+    return transactions.filter(t => {
+      const dq = searchQ.toLowerCase();
+      if (dq && !t.description.toLowerCase().includes(dq)) return false;
+      if (filters.from && t.date < filters.from) return false;
+      if (filters.to && t.date > filters.to) return false;
+      if (filters.cat && t.category !== filters.cat) return false;
+      if (filters.acc && t.accountId !== filters.acc) return false;
+      if (filters.type && t.txType !== filters.type) return false;
+      if (filters.cd && t.creditDebit !== filters.cd) return false;
+      if (filters.tags.length && !filters.tags.some(tg => (t.tags || []).includes(tg))) return false;
+      return true;
+    }).sort((a, b) => b.date.localeCompare(a.date));
+  }, [transactions, searchQ, filters]);
+
+  // ── RENDER ────────────────────────────────────────────────────────────────
+  if (!ready) return <div style={{ background: C.bg, height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><div className="spinner" /></div>;
+
+  if (!user) return (
+    <div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div className="page-enter" style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 36, padding: 56, textAlign: "center", maxWidth: 400 }}>
+        <div style={{ fontSize: 60, marginBottom: 20 }}>💰</div>
+        <h1 style={{ fontSize: 32, fontWeight: 900, color: C.text }}>Expense tracker</h1>
+        <p style={{ color: C.sub, marginBottom: 32 }}>Your private financial command center.</p>
+        <div id="googleBtn"></div>
+      </div>
+    </div>
+  );
+
+  const activeTitle = {
+    dashboard: "Expense tracker 💰",
+    transactions: "Transactions",
+    reports: "Wealth Report",
+    organize: "Organize",
+    vault: "Vault",
+    settings: "Settings"
+  }[page];
+
+  return (
+    <div style={{ background: C.bg, minHeight: "100vh", color: C.text, paddingBottom: 100, maxWidth: 600, margin: "0 auto", position: "relative" }}>
+      <style>{globalStyles}</style>
+      <Header
+        title={activeTitle}
+        theme={C}
+        themeMode={themeMode}
+        toggleTheme={toggleTheme}
+        onOpenSettings={() => setPage("settings")}
+        syncStatus={syncStatus}
+        onOpenSync={() => setShowBackup(true)}
+      />
+
+      <main>
+        {page === "dashboard" && <Dashboard {...{ user, transactions, categories, tags, accounts, stats, netWorth: nw, getDayFlow: (days) => getDayFlow(transactions, days), viewDate, setViewDate, onEditTx: setEditTx, onAddTx: () => setAddTx(true), onSave: handleSaveTx, theme: C }} />}
+        {page === "transactions" && <TransactionsPage {...{
+          transactions, filteredTx, categories, tags, accounts, searchQ, setSearchQ, filters, setFilters,
+          hasFilter: !!(filters.from || filters.to || filters.cat || filters.acc || filters.type || filters.cd || filters.tags.length),
+          onShowFilters: () => setShowFilters(true),
+          onShowUpload: () => { }, // Will add later
+          onExportCSV: () => exportCSV(filteredTx, categories, tags, accounts),
+          onExportPDF: () => exportTransactionsPDF(filteredTx, categories, accounts, (m) => notify(m)),
+          onEditTx: setEditTx,
+          selectedTxIds, setSelectedTxIds,
+          onDeleteBulk: () => {
+            setTransactions(p => p.filter(t => !selectedTxIds.includes(t.id)));
+            setSelectedTxIds([]);
+            notify("✓ Bulk Deleted");
+          },
+          onAdd: () => setAddTx(true),
+          theme: C
+        }} />}
+        {page === "reports" && <ReportsPage {...{
+          reportTab, setReportTab, reportsMode, setReportsMode, reportsSubTab, setReportsSubTab, reportDate, setReportDate,
+          filtered: filteredTx, // Use filtered for reports too
+          stats: getSummary(filteredTx),
+          savingsRate: getSummary(filteredTx).inc > 0 ? Math.round(((getSummary(filteredTx).inc - getSummary(filteredTx).exp) / getSummary(filteredTx).inc) * 100) : 0,
+          aggrData: Object.entries(filteredTx.reduce((acc, t) => {
+            const k = reportsMode === "category" ? (categories.find(c => c.id === t.category)?.name || "Other") : (t.tags?.[0] ? (tags.find(tg => tg.id === t.tags[0])?.name || "Tag") : "Untagged");
+            acc[k] = (acc[k] || 0) + t.amount;
+            return acc;
+          }, {})).sort((a, b) => b[1] - a[1]),
+          theme: C
+        }} />}
+        {page === "organize" && <OrganizePage {...{
+          organizeTab, setOrganizeTab, categories, transactions, tags, budgets, rules, DEF_CATS,
+          onAddCat: () => setAddCat(true),
+          onEditCat: (c) => setEditCat(c),
+          onDeleteCat: (id) => {
+            setCategories(p => p.filter(c => c.id !== id));
+            notify("✓ Category Deleted");
+          },
+          onAddTag: () => setAddTag(true),
+          onEditTag: (t) => setEditTag(t),
+          onDeleteTag: (id) => {
+            setTags(p => p.filter(x => x.id !== id));
+            notify("✓ Tag Deleted");
+          },
+          onAddBudget: (type) => setEditBudget({ type, isNew: true }),
+          onEditBudget: (id, b, type) => {
+            if (type === "categories") setEditBudget({ categoryId: id, budget: b, type });
+            else setEditBudget({ tagId: id, budget: b, type });
+          },
+          onDeleteBudget: (budgetId) => {
+            setBudgets(p => p.filter(b => b.id !== budgetId));
+            notify("✓ Budget Removed");
+          },
+          onAddRule: (r) => setRules(p => [r, ...p]),
+          onEditRule: (r) => setRules(p => p.map(x => x.id === r.id ? r : x)),
+          onDeleteRule: (id) => setRules(p => p.filter(x => x.id !== id)),
+          onMagicWand: () => notify("Auto-categorization applied"),
+          theme: C
+        }} />}
+        {page === "vault" && <VaultPage {...{
+          accounts, transactions,
+          onAddAcc: () => setAddAcc(true),
+          onDeleteAcc: (id) => {
+            if (window.confirm("Delete account?")) {
+              setAccounts(p => p.filter(x => x.id !== id));
+              notify("Account Deleted");
+            }
+          },
+          theme: C
+        }} />}
+        {page === "settings" && <SettingsPage {...{
+          themeMode, toggleTheme,
+          onShowBackup: () => setShowBackup(true),
+          onExportBackup: () => {
+            const data = { transactions, categories, tags, accounts, budgets, rules };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Expense_Backup_${new Date().toISOString().split("T")[0]}.json`;
+            a.click();
+            notify("Backup Downloaded");
+          },
+          onImportBackup: () => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            input.onchange = (e) => {
+              const file = e.target.files[0];
+              const reader = new FileReader();
+              reader.onload = (re) => {
+                try {
+                  const data = JSON.parse(re.target.result);
+                  if (data.transactions) setTransactions(data.transactions);
+                  if (data.categories) setCategories(data.categories);
+                  if (data.tags) setTags(data.tags);
+                  if (data.accounts) setAccounts(data.accounts);
+                  if (data.budgets) setBudgets(data.budgets);
+                  if (data.rules) setRules(data.rules);
+                  notify("Import Successful");
+                } catch (err) { notify("Invalid file", "error"); }
+              };
+              reader.readAsDataURL(file);
+            };
+            input.click();
+          },
+          onClearData: () => {
+            if (window.confirm("CLEAR EVERYTHING?")) {
+              setTransactions([]); setAccounts([]); setBudgets([]); setRules([]);
+              notify("Data Cleared");
+            }
+          },
+          theme: C
+        }} />}
+      </main>
+
+      <BottomNav page={page} setPage={setPage} theme={C} />
+
+      <Modal theme={C} open={addTx} onClose={() => setAddTx(false)} title="Add Transaction">
+        <TxForm categories={categories} tags={tags} accounts={accounts} onSave={handleSaveTx} onClose={() => setAddTx(false)} theme={C} />
+      </Modal>
+
+      <Modal theme={C} open={!!editTx} onClose={() => setEditTx(null)} title="Edit Transaction">
+        {editTx && <TxForm init={editTx} categories={categories} tags={tags} accounts={accounts} onSave={handleSaveTx} onDelete={handleDeleteTx} onClose={() => setEditTx(null)} theme={C} />}
+      </Modal>
+
+      <Modal theme={C} open={showBackup} onClose={() => setShowBackup(false)} title="Sync & Backup">
+        {/* Drive Logic Here */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <button onClick={saveToDrive} disabled={driveStep === "saving"} style={{ background: C.primary, color: "#000", padding: 12, borderRadius: 12, border: "none" }}>{driveStep === "saving" ? "Saving..." : "Save to Drive"}</button>
+          <button onClick={listDriveBackups} style={{ background: C.muted, color: C.text, padding: 12, borderRadius: 12, border: `1px solid ${C.border}` }}>Restore from Drive</button>
+          {driveStep === "list" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {driveFiles.map(f => (
+                <div key={f.id} onClick={() => restoreFromDrive(f.id)} style={{ background: C.card, padding: 10, borderRadius: 10, cursor: "pointer" }}>{f.name}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal open={!!(addCat || editCat)} title={addCat ? "New Category" : "Edit Category"} onClose={() => { setAddCat(false); setEditCat(null); }} theme={C}>
+        <CatForm
+          editCat={editCat}
+          theme={C}
+          onCancel={() => { setAddCat(false); setEditCat(null); }}
+          onSave={(c) => {
+            setCategories(p => {
+              const idx = p.findIndex(x => x.id === c.id);
+              if (idx > -1) return p.map(x => x.id === c.id ? c : x);
+              return [c, ...p];
+            });
+            setAddCat(false);
+            setEditCat(null);
+            notify("✓ Category Saved");
+          }}
+        />
+      </Modal>
+
+      <Modal open={!!(addTag || editTag)} title={addTag ? "New Tag" : "Edit Tag"} onClose={() => { setAddTag(false); setEditTag(null); }} theme={C}>
+        <TagForm
+          editTag={editTag}
+          theme={C}
+          onCancel={() => { setAddTag(false); setEditTag(null); }}
+          onSave={(t) => {
+            setTags(p => {
+              const idx = p.findIndex(x => x.id === t.id);
+              if (idx > -1) return p.map(x => x.id === t.id ? t : x);
+              return [t, ...p];
+            });
+            setAddTag(false);
+            setEditTag(null);
+            notify("✓ Tag Saved");
+          }}
+        />
+      </Modal>
+
+      <Modal open={!!editBudget} title={editBudget?.categoryId || editBudget?.tagId ? "Edit Budget" : "New Budget"} onClose={() => setEditBudget(null)} theme={C}>
+        {editBudget && (
+          <BudgetForm
+            item={editBudget.type === "categories" ? categories.find(c => c.id === editBudget.categoryId) : tags.find(t => t.id === editBudget.tagId)}
+            type={editBudget.type}
+            availables={editBudget.type === "categories" 
+              ? categories.filter(c => c.type === "Expense" && !budgets.some(b => b.categoryId === c.id))
+              : tags.filter(t => !budgets.some(b => b.tagId === t.id))
+            }
+            currentBudget={editBudget.budget}
+            theme={C}
+            onCancel={() => setEditBudget(null)}
+            onSave={(targetId, amt) => {
+              setBudgets(p => {
+                const idKey = editBudget.type === "categories" ? "categoryId" : "tagId";
+                
+                const idx = p.findIndex(b => b[idKey] === targetId);
+                if (idx > -1) { 
+                  if (amt === 0) return p.filter(b => b[idKey] !== targetId);
+                  const n = [...p]; n[idx].amount = amt; return n; 
+                }
+                if (amt === 0) return p;
+                return [...p, { id: uid(), [idKey]: targetId, amount: amt }];
+              });
+              setEditBudget(null);
+              notify("✓ Budget Saved");
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal open={addAcc} title="New Vault Account" onClose={() => setAddAcc(false)} theme={C}>
+        <AccForm
+          theme={C}
+          onCancel={() => setAddAcc(false)}
+          onSave={(acc) => {
+            setAccounts(p => [acc, ...p]);
+            setAddAcc(false);
+            notify("✓ Account Created");
+          }}
+        />
+      </Modal>
+
+      <Toast toast={toast} theme={C} />
+
+
+      <style>{`
+        .spinner { width:40px; height:40px; border:4px solid transparent; border-top-color:${C.primary}; border-radius:50%; animation:spin 1s linear infinite; }
+        @keyframes scan { 0% { top:-100%; } 100% { top:200%; } }
+        @keyframes pulse-neon { 0% { box-shadow:0 0 5px ${C.primaryDim}; } 50% { box-shadow:0 0 20px ${C.primary}; } 100% { box-shadow:0 0 5px ${C.primaryDim}; } }
+        @keyframes typing { from { width:0; } to { width:100%; } }
+        
+        .glass-card {
+          background: rgba(255,255,255,0.03) !important;
+          backdrop-filter: blur(24px) saturate(180%) !important;
+          border: 1px solid rgba(255,255,255,0.1) !important;
+        }
+        
+        .cyber-accent {
+          position: relative;
+          overflow: hidden;
+        }
+        .cyber-accent::before {
+          content: ""; position: absolute; top: 0; left: 0; width: 10px; height: 10px;
+          border-top: 2px solid ${C.primary}; border-left: 2px solid ${C.primary};
+        }
+        .cyber-accent::after {
+          content: ""; position: absolute; bottom: 0; right: 0; width: 10px; height: 10px;
+          border-bottom: 2px solid ${C.primary}; border-right: 2px solid ${C.primary};
+        }
+        
+        .scan-line {
+          position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(to bottom, transparent, ${C.primary}44, transparent);
+          height: 100px; width: 100%; opacity: 0.1;
+          animation: scan 4s linear infinite;
+        }
+
+        @keyframes spin { to { transform:rotate(360deg); } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .page-enter { animation: fadeIn 0.4s ease-out; }
+        
+        /* Premium Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: ${C.border}; borderRadius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: ${C.primary}; }
+        
+        .premium-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: ${C.border} transparent;
+        }
+        .premium-scroll::-webkit-scrollbar { width: 5px; }
+        .premium-scroll::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 10px; }
+      `}</style>
+    </div>
+  );
+}

@@ -154,6 +154,7 @@ const IC = {
   chart:"M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.4 8h3v6h-3v-6z",
   analyze:"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm4-4H6v-2h10v2zm0-4H6V7h10v2z",
   check:"M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  settings:"M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z",
 };
 const Ico = ({n,sz=18,c="currentColor"}) => <svg width={sz} height={sz} viewBox="0 0 24 24" fill={c} style={{flexShrink:0}}><path d={IC[n]||""}/></svg>;
 
@@ -188,49 +189,100 @@ const FInput = ({value,onChange,placeholder,type="text",style:x}) => (
 );
 
 
-const CustomSelect = ({ label, value, options, onChange, placeholder = "Select..." }) => {
+const PremiumSelect = ({ label, value, options, onChange, placeholder = "Select...", searchable = true }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const containerRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (e) => { if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false); };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const filtered = options.filter(o => 
+    (o.name || o.label || "").toLowerCase().includes(search.toLowerCase())
+  );
+
   const selected = options.find(o => (o.id === value || o.name === value));
+
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
       {label && <FLabel>{label}</FLabel>}
       <div onClick={() => setIsOpen(!isOpen)} style={{
-        background: C.input, border: `1px solid ${isOpen ? C.primary : C.border}`, borderRadius: 12, padding: "10px 14px", cursor: "pointer", 
-        display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all .2s ease", minHeight: 44
+        background: C.input, border: `1px solid ${isOpen ? C.primary : C.border}`, borderRadius: 16, padding: "12px 16px", cursor: "pointer", 
+        display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all .3s cubic-bezier(0.4, 0, 0.2, 1)", minHeight: 48,
+        boxShadow: isOpen ? `0 0 20px ${C.primaryDim}` : "none"
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap:10 }}>
-          {selected?.color && <div style={{ width: 8, height: 8, borderRadius: "50%", background: selected.color }} />}
-          <span style={{ color: selected ? C.text : C.sub, fontSize: 13, fontWeight: 700 }}>{selected ? (selected.name || selected.label) : placeholder}</span>
+        <div style={{ display: "flex", alignItems: "center", gap:12 }}>
+          {selected?.color ? (
+             <div style={{ width: 10, height: 10, borderRadius: "50%", background: selected.color, boxShadow: `0 0 10px ${selected.color}44` }} />
+          ) : selected?.emoji ? (
+             <span style={{ fontSize: 16 }}>{selected.emoji}</span>
+          ) : null}
+          <div style={{display:"flex", flexDirection:"column"}}>
+            <span style={{ color: selected ? C.text : C.sub, fontSize: 13, fontWeight: 700 }}>{selected ? (selected.name || selected.label) : placeholder}</span>
+            {selected?.type && <span style={{fontSize:9, color:C.sub, fontWeight:800, textTransform:"uppercase", letterSpacing:".05em"}}>{selected.type}</span>}
+          </div>
         </div>
-        <div style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .3s", display: "flex", color: C.sub }}>
+        <div style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .4s cubic-bezier(0.175, 0.885, 0.32, 1.275)", display: "flex", color: isOpen ? C.primary : C.sub }}>
           <Ico n="chevronDown" sz={18} />
         </div>
       </div>
+
       {isOpen && (
         <div className="page-enter" style={{
-          position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, 
-          boxShadow: "0 10px 30px rgba(0,0,0,0.3)", zIndex: 1000, maxHeight: 250, overflowY: "auto", backdropFilter: "blur(25px)", padding: 6
+          position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 24, 
+          boxShadow: "0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)", zIndex: 1000, maxHeight: 320, overflow: "hidden", 
+          backdropFilter: "blur(40px) saturate(200%)", animation: "scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
         }}>
-          {options.map(opt => (
-            <div key={opt.id || opt.name} onClick={() => { onChange(opt.id || opt.name); setIsOpen(false); }} style={{
-              padding: "10px 12px", borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, transition: "background .2s",
-              background: (opt.id || opt.name) === value ? C.primary + "15" : "transparent"
-            }} onMouseEnter={e => e.currentTarget.style.background = C.muted} onMouseLeave={e => e.currentTarget.style.background = (opt.id || opt.name) === value ? C.primary + "15" : "transparent"}>
-              {opt.color && <div style={{ width: 8, height: 8, borderRadius: "50%", background: opt.color }} />}
-              <span style={{ color: (opt.id || opt.name) === value ? C.primary : C.text, fontSize: 13, fontWeight: 700 }}>{opt.name || opt.label}</span>
+          {searchable && options.length > 5 && (
+            <div style={{padding:12, borderBottom:`1px solid ${C.border}`, background:C.muted+"30"}}>
+               <input 
+                 autoFocus
+                 placeholder="Search…" 
+                 value={search} 
+                 onChange={e => setSearch(e.target.value)}
+                 style={{width:"100%", background:C.input, border:`1px solid ${C.border}`, borderRadius:12, padding:"8px 12px", color:C.text, fontSize:13, outline:"none", fontFamily:"inherit"}}
+               />
             </div>
-          ))}
+          )}
+          <div style={{maxHeight:searchable && options.length > 5 ? 260 : 320, overflowY:"auto", padding:6}}>
+            {filtered.length === 0 ? (
+              <div style={{padding:20, textAlign:"center", color:C.sub, fontSize:12}}>No matches found</div>
+            ) : filtered.map(opt => {
+              const sel = (opt.id || opt.name) === value;
+              return (
+                <div key={opt.id || opt.name} onClick={() => { onChange(opt.id || opt.name); setIsOpen(false); setSearch(""); }} style={{
+                  padding: "12px 14px", borderRadius:16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all .2s",
+                  background: sel ? C.primary + "15" : "transparent", marginBottom: 2
+                }} onMouseEnter={e => e.currentTarget.style.background = C.muted} onMouseLeave={e => e.currentTarget.style.background = sel ? C.primary + "15" : "transparent"}>
+                  {opt.color ? (
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: opt.color, boxShadow: `0 0 8px ${opt.color}33` }} />
+                  ) : opt.emoji ? (
+                    <span style={{ fontSize: 16 }}>{opt.emoji}</span>
+                  ) : null}
+                  <div style={{flex:1}}>
+                    <div style={{ color: sel ? C.primary : C.text, fontSize: 13, fontWeight: 700 }}>{opt.name || opt.label}</div>
+                    {opt.type && <div style={{fontSize:9, color:C.sub, fontWeight:800, textTransform:"uppercase"}}>{opt.type}</div>}
+                  </div>
+                  {sel && <Ico n="check" sz={14} c={C.primary}/>}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
+      <style>{`
+        @keyframes scaleUp {
+          from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
     </div>
   );
 };
+const CustomSelect = PremiumSelect; // Alias for backward compatibility
 
 const Btn = ({children,onClick,v="primary",icon,disabled,full,sm}) => {
   const vs={
@@ -285,6 +337,8 @@ const TypeToggle = ({value,onChange}) => (
 // ─── Transaction Form (shared for add + edit) ─────────────────────────────────
 const TxForm = ({init, categories, tags, accounts, onSave, onDelete, onClose}) => {
   const [tx, setTx] = useState({...BLANK_TX, ...init});
+  const [isSplitting, setIsSplitting] = useState(false);
+  const [splits, setSplits] = useState([{id:uid(), amount:"", category:init?.category||"c13"}]);
   const f = k => v => setTx(p=>({...p,[k]:v}));
   const fEv = k => e => setTx(p=>({...p,[k]:e.target.value}));
 
@@ -330,10 +384,59 @@ const TxForm = ({init, categories, tags, accounts, onSave, onDelete, onClose}) =
       </div>
 
       {/* Row 6: Amount */}
-      <div>
-        <FLabel>Amount (₹)</FLabel>
-        <FInput value={tx.amount} onChange={fEv("amount")} type="number" placeholder="0" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:18,fontWeight:700,color:tx.creditDebit==="Credit"?C.income:C.expense}}/>
+      <div style={{display:"flex", alignItems:"flex-end", gap:10}}>
+        <div style={{flex:1}}>
+          <FLabel>Amount (₹)</FLabel>
+          <FInput value={tx.amount} onChange={fEv("amount")} type="number" placeholder="0" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:18,fontWeight:700,color:tx.creditDebit==="Credit"?C.income:C.expense}}/>
+        </div>
+        {!init?.id && (
+          <button onClick={() => setIsSplitting(!isSplitting)} style={{background:isSplitting?C.primaryDim:C.muted, border:`1px solid ${isSplitting?C.primary:C.border}`, borderRadius:10, padding:"8px 12px", color:isSplitting?C.primary:C.sub, fontSize:11, fontWeight:800, cursor:"pointer", transition:"all .2s", height:42, display:"flex", alignItems:"center", gap:6}}>
+            <Ico n="analyze" sz={14}/> {isSplitting ? "Cancel Split" : "Split"}
+          </button>
+        )}
       </div>
+
+      {isSplitting && (
+        <div style={{background:C.muted, padding:14, borderRadius:18, display:"flex", flexDirection:"column", gap:12, marginTop:-4}}>
+           <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <span style={{color:C.text, fontSize:11, fontWeight:800, textTransform:"uppercase"}}>Breakdown</span>
+              <button onClick={() => setSplits([...splits, {id:uid(), amount:"", category:"c13"}])} style={{background:C.primary, border:"none", borderRadius:6, padding:"4px 8px", color:"#000", fontSize:10, fontWeight:800, cursor:"pointer"}}>+ Add Row</button>
+           </div>
+           {splits.map((s, i) => (
+             <div key={s.id} style={{display:"flex", gap:8, alignItems:"center"}}>
+                <div style={{flex:1}}>
+                  <FInput value={s.amount} onChange={e => {
+                    const newSplits = [...splits];
+                    newSplits[i].amount = e.target.value;
+                    setSplits(newSplits);
+                  }} type="number" placeholder="Amt" style={{padding:"8px 10px", fontSize:13}}/>
+                </div>
+                <div style={{flex:1.5}}>
+                  <CustomSelect
+                    value={s.category}
+                    options={categories.filter(c=>c.type===tx.txType)}
+                    onChange={v => {
+                      const newSplits = [...splits];
+                      newSplits[i].category = v;
+                      setSplits(newSplits);
+                    }}
+                    placeholder="Cat"
+                    searchable={false}
+                  />
+                </div>
+                {splits.length > 1 && (
+                  <button onClick={() => setSplits(splits.filter(x => x.id !== s.id))} style={{background:"none", border:"none", color:C.expense, cursor:"pointer", padding:4}}><Ico n="close" sz={16}/></button>
+                )}
+             </div>
+           ))}
+           <div style={{display:"flex", justifyContent:"space-between", paddingTop:8, borderTop:`1px solid ${C.border}`}}>
+              <span style={{color:C.sub, fontSize:11, fontWeight:700}}>Total: {fmtAmt(splits.reduce((acc,curr)=>acc+(parseFloat(curr.amount)||0), 0))}</span>
+              <span style={{color:Math.abs(tx.amount - splits.reduce((acc,curr)=>acc+(parseFloat(curr.amount)||0), 0)) < 0.01 ? C.income : C.expense, fontSize:11, fontWeight:900}}>
+                {Math.abs(tx.amount - splits.reduce((acc,curr)=>acc+(parseFloat(curr.amount)||0), 0)) < 0.01 ? "✓ Balanced" : `Remaining: ${fmtAmt(tx.amount - splits.reduce((acc,curr)=>acc+(parseFloat(curr.amount)||0), 0))}`}
+              </span>
+           </div>
+        </div>
+      )}
 
       {/* Row 7: Tags */}
       <div>
@@ -365,10 +468,22 @@ const TxForm = ({init, categories, tags, accounts, onSave, onDelete, onClose}) =
         </div>
       </div>
 
-      {/* Actions */}
       <div style={{display:"flex",gap:10,paddingTop:4}}>
         {onDelete && <Btn v="danger" sm icon="trash" onClick={()=>onDelete(tx.id)}>Delete</Btn>}
-        <Btn full disabled={!valid} onClick={()=>onSave(tx)}>{init?.id ? "Save Changes" : "Add Transaction"}</Btn>
+        <Btn full disabled={!valid || (isSplitting && Math.abs(tx.amount - splits.reduce((a,c)=>a+(parseFloat(c.amount)||0), 0)) > 0.01)} onClick={()=>{
+          if(isSplitting) {
+            const splitTxs = splits.map(s => ({
+              ...tx, 
+              id: uid(), 
+              amount: parseFloat(s.amount), 
+              category: s.category, 
+              description: `${tx.description} (${categories.find(c=>c.id===s.category)?.name})`
+            }));
+            onSave(splitTxs);
+          } else {
+            onSave(tx);
+          }
+        }}>{init?.id ? "Save Changes" : isSplitting ? "Save Splits" : "Add Transaction"}</Btn>
       </div>
     </div>
   );
@@ -376,18 +491,27 @@ const TxForm = ({init, categories, tags, accounts, onSave, onDelete, onClose}) =
 
 // ─── Transaction Row Card ─────────────────────────────────────────────────────
 // Columns: Date | Type pill | Category dot+name | Description | Tags | Amount | CR/DR badge
-const TxRow = ({t, categories, tags, accounts, onClick}) => {
+const TxRow = ({t, categories, tags, accounts, onClick, selected, onSelect}) => {
   const cat = categories.find(c=>c.id===t.category);
   const txTags = (t.tags||[]).map(tid=>tags.find(tg=>tg.id===tid)).filter(Boolean);
   const amtColor = t.creditDebit==="Credit" ? C.credit : C.debit;
   const typeColor = t.txType==="Income"?C.income:t.txType==="Investment"?C.invest:C.expense;
 
   return (
-    <div onClick={onClick} style={{
-      background:C.card, borderWidth:1, borderStyle:"solid", borderColor:C.border, borderRadius:22, padding:"16px", cursor:"pointer",
-      display:"flex", flexDirection:"column", gap:12, transition:"all .35s cubic-bezier(0.16, 1, 0.3, 1)", backdropFilter:"blur(16px) saturate(200%)",
-      boxShadow:C.cardGlow||"none"
-    }} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.primary;e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 8px 32px ${C.primaryDim}`;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=C.cardGlow||"none";}}>
+    <div style={{display:"flex", gap:10, alignItems:"center"}}>
+      {onSelect && (
+        <div onClick={(e)=>{e.stopPropagation(); onSelect(!selected);}} style={{
+          width:24, height:24, borderRadius:8, border:`2px solid ${selected?C.primary:C.border}`, 
+          background:selected?C.primary:"transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all .2s"
+        }}>
+          {selected && <Ico n="check" sz={14} c="#000"/>}
+        </div>
+      )}
+      <div onClick={onClick} style={{
+        flex:1, background:C.card, borderWidth:1, borderStyle:"solid", borderColor:selected?C.primary:C.border, borderRadius:22, padding:"16px", cursor:"pointer",
+        display:"flex", flexDirection:"column", gap:12, transition:"all .35s cubic-bezier(0.16, 1, 0.3, 1)", backdropFilter:"blur(16px) saturate(200%)",
+        boxShadow:selected?`0 8px 32px ${C.primaryDim}`:(C.cardGlow||"none"), transform:selected?"scale(1.02)":"none"
+      }} onMouseEnter={e=>{if(!selected){e.currentTarget.style.borderColor=C.primary;e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 8px 32px ${C.primaryDim}`;}}} onMouseLeave={e=>{if(!selected){e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=C.cardGlow||"none";}}}>
 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -424,7 +548,8 @@ const TxRow = ({t, categories, tags, accounts, onClick}) => {
         </div>
       )}
     </div>
-  );
+  </div>
+);
 };
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
@@ -439,10 +564,19 @@ export default function App() {
   const [accounts, setAccounts] = useState([]);
 
   const [page, setPage] = useState("dashboard");
+  const [organizeTab, setOrganizeTab] = useState("categories");
   const [reportTab, setReportTab] = useState("month");
+  const [reportsMode, setReportsMode] = useState("category"); // category, tag
+  const [reportsSubTab, setReportsSubTab] = useState("breakdown"); // breakdown, trend
   const [reportDate, setReportDate] = useState(new Date());
   const [viewDate, setViewDate] = useState(new Date());
+  const [budgets, setBudgets] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [editingBudget, setEditingBudget] = useState(null);
+  const [editingRule, setEditingRule] = useState(null);
   const [toast, setToast] = useState(null);
+  const [syncStatus, setSyncStatus] = useState("synced"); // synced, pending, error, offline
+  const [lastSync, setLastSync] = useState(new Date().toLocaleTimeString());
 
   C = { ...THEMES[themeMode], ...BASE_C };
 
@@ -455,10 +589,13 @@ export default function App() {
   const [showNewTag, setShowNewTag] = useState(false);
   const [showNewAcc, setShowNewAcc] = useState(false);
   const [showBackup, setShowBackup] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
 
   const [filters, setFilters] = useState({from:"",to:"",cat:"",tags:[],acc:"",type:"",cd:""});
   const [searchQ, setSearchQ] = useState("");
-  const [newCat, setNewCat] = useState({name:"",type:"Expense",color:"#00dba8",budget:""});
+  const [selectedTxIds, setSelectedTxIds] = useState([]);
+  const [newCat, setNewCat] = useState({name:"",type:"Expense",color:"#00dba8",budget:"",emoji:"💰"});
+  const [editingCat, setEditingCat] = useState(null);
   const [newTag, setNewTag] = useState({name:"",color:"#00dba8"});
   const [editingTag, setEditingTag] = useState(null);
   const [newAcc, setNewAcc] = useState({name:"",type:"Bank",initialBalance:""});
@@ -494,6 +631,8 @@ export default function App() {
           if(d.categories)   setCategories(d.categories);
           if(d.tags)         setTags(d.tags);
           if(d.accounts)     setAccounts(d.accounts);
+          if(d.budgets)      setBudgets(d.budgets || []);
+          if(d.rules)        setRules(d.rules || []);
         }
       } catch {}
 
@@ -538,20 +677,38 @@ export default function App() {
 
   // ── Persist ──────────────────────────────────────────────────────────────────
   const cur = useRef({});
-  cur.current = {transactions,categories,tags,accounts};
+  cur.current = {transactions,categories,tags,accounts,budgets,rules};
   const save = useCallback(patch => { try { dbSet("appData",{...cur.current,...patch}); } catch {} }, []);
 
   const setTx   = fn => { const n=typeof fn==="function"?fn(transactions):fn; setTransactions(n); save({transactions:n}); };
   const setCats  = fn => { const n=typeof fn==="function"?fn(categories):fn;  setCategories(n);  save({categories:n}); };
   const setTgs   = fn => { const n=typeof fn==="function"?fn(tags):fn;        setTags(n);        save({tags:n}); };
   const setAccs  = fn => { const n=typeof fn==="function"?fn(accounts):fn;    setAccounts(n);    save({accounts:n}); };
+  const setBdg   = fn => { const n=typeof fn==="function"?fn(budgets):fn;     setBudgets(n);     save({budgets:n}); };
+  const setRl    = fn => { const n=typeof fn==="function"?fn(rules):fn;       setRules(n);       save({rules:n}); };
 
   // ── Add / Edit transaction ───────────────────────────────────────────────────
-  const handleSaveTx = (tx) => {
-    const amt = parseFloat(tx.amount)||0;
-    const finalTx = {...tx, amount:amt, id:tx.id||uid()};
-    if(tx.id){ setTx(prev=>prev.map(t=>t.id===tx.id?finalTx:t)); notify("✓ Saved"); }
-    else      { setTx(prev=>[finalTx,...prev]); notify("✓ Transaction added"); }
+  const handleSaveTx = (incoming) => {
+    const toSave = Array.isArray(incoming) ? incoming : [incoming];
+    
+    // Apply Auto-Rules (Phase 4)
+    const processed = toSave.map(tx => {
+      const match = rules.find(r => tx.description.toLowerCase().includes(r.pattern.toLowerCase()));
+      return match ? { ...tx, category: match.categoryId } : tx;
+    });
+
+    setTx(prev => {
+      let next = [...prev];
+      processed.forEach(tx => {
+        const amt = parseFloat(tx.amount)||0;
+        const finalTx = {...tx, amount:amt, id:tx.id||uid()};
+        const existingIdx = next.findIndex(t => t.id === tx.id);
+        if(existingIdx > -1) next[existingIdx] = finalTx;
+        else next = [finalTx, ...next];
+      });
+      return next;
+    });
+    notify(toSave.length > 1 ? `✓ ${toSave.length} transactions saved` : "✓ Saved");
     setAddTx(false); setEditTx(null);
   };
   const handleDeleteTx = id => { setTx(prev=>prev.filter(t=>t.id!==id)); setEditTx(null); notify("Deleted"); };
@@ -590,6 +747,43 @@ export default function App() {
       } catch { notify("Invalid file","error"); }
     };
     r.readAsText(f); e.target.value="";
+  };
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CALCULATIONS & HELPERS
+  // ════════════════════════════════════════════════════════════════════════════
+  const getAccBal = (accId) => {
+    const acc = accounts.find(a => a.id === accId);
+    if (!acc) return 0;
+    const txs = transactions.filter(t => t.accountId === accId);
+    const flow = txs.reduce((s, t) => s + (t.creditDebit === "Credit" ? t.amount : -t.amount), 0);
+    return acc.initialBalance + flow;
+  };
+
+  const netWorth = accounts.reduce((s, a) => s + getAccBal(a.id), 0);
+
+  const getRecentTx = (limit = 5) => [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, limit);
+
+  const getDayFlow = (days = 30) => {
+    const data = [];
+    const now = new Date();
+    for(let i=days; i>=0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      const ds = d.toISOString().split("T")[0];
+      const dayTxs = transactions.filter(t => t.date === ds);
+      const net = dayTxs.reduce((s, t) => s + (t.creditDebit === "Credit" ? t.amount : -t.amount), 0);
+      data.push(net);
+    }
+    return data;
+  };
+
+  const triggerSync = () => {
+    setSyncStatus("pending");
+    setTimeout(() => {
+      setSyncStatus("synced");
+      setLastSync(new Date().toLocaleTimeString());
+      notify("✓ Everything Synced");
+    }, 1500);
   };
 
   // ── Google Drive Backup ────────────────────────────────────────────────────
@@ -830,8 +1024,41 @@ export default function App() {
   if(!ready) return <div style={{background:C.bg,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:36,height:36,borderRadius:"50%",borderWidth:3,borderStyle:"solid",borderLeftColor:C.muted,borderRightColor:C.muted,borderBottomColor:C.muted,borderTopColor:C.primary,animation:"spin .7s linear infinite"}}/><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>;
 
   // ════════════════════════════════════════════════════════════════════════════
-  // PAGE: DASHBOARD
+  // DASHBOARD COMPONENTS
   // ════════════════════════════════════════════════════════════════════════════
+  const Sparkline = ({ data, color, height = 30 }) => {
+    if(!data || data.length < 2) return null;
+    const max = Math.max(...data.map(Math.abs), 1);
+    const pts = data.map((v, i) => `${(i / (data.length - 1)) * 100},${50 - (v / max) * 40}`).join(" ");
+    return (
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: "100%", height, opacity: 0.6 }}>
+        <polyline fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={pts} />
+      </svg>
+    );
+  };
+
+  const QuickAdd = () => {
+    const [amt, setAmt] = useState("");
+    const [cat, setCat] = useState(categories[0]?.id || "");
+    const submit = () => {
+      if(!amt || isNaN(amt)) return;
+      handleSaveTx({ ...BLANK_TX, id: uid(), amount: parseFloat(amt), category: cat, date: todayISO() });
+      setAmt("");
+      notify("✓ Quick entry saved");
+    };
+    return (
+      <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:24, padding:14, display:"flex", alignItems:"center", gap:10, backdropFilter:"blur(12px)"}}>
+        <div style={{flex:1, position:"relative"}}>
+          <span style={{position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:C.sub, fontSize:12, fontWeight:800}}>₹</span>
+          <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="0.00" style={{width:"100%", background:C.input, border:"none", borderRadius:14, padding:"10px 10px 10px 24px", color:C.text, fontSize:15, fontWeight:800, fontFamily:"'JetBrains Mono',monospace"}} />
+        </div>
+        <select value={cat} onChange={e=>setCat(e.target.value)} style={{background:C.input, border:"none", borderRadius:14, padding:"10px", color:C.text, fontSize:13, fontWeight:700, outline:"none"}}>
+          {categories.slice(0, 8).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <button onClick={submit} style={{width:42, height:42, borderRadius:14, background:`linear-gradient(135deg, ${C.primary}, ${C.secondary})`, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center"}} onMouseOver={e=>e.currentTarget.style.transform="scale(1.05)"} onMouseOut={e=>e.currentTarget.style.transform="scale(1)"}><Ico n="plus" sz={18} c="#000"/></button>
+      </div>
+    );
+  };
   const Dashboard = (
     <div className="page-enter" style={{padding:"20px 20px 100px 20px",display:"flex",flexDirection:"column",gap:24}}>
       
@@ -848,26 +1075,26 @@ export default function App() {
         {user?.picture && <img src={user.picture} style={{width:44,height:44,borderRadius:14,border:`2px solid ${C.borderLight}`,boxShadow:C.shadow}} alt="Profile"/>}
       </div>
 
-      {/* Hero Balance Card */}
+      {/* Quick Add Top Widget */}
+      <QuickAdd />
+
+      {/* Net Worth Hero Card */}
       <div style={{
-        backgroundImage:`linear-gradient(135deg, ${C.primary}, ${C.secondary})`, backgroundSize:"300% 300%", animation:"gradientShift 5s ease infinite",
-        borderRadius:32, padding:28, color:"#000", position:"relative", overflow:"hidden",
-        boxShadow:`0 24px 60px ${C.primaryDim}, 0 0 80px ${C.primaryDim}`, display:"flex", flexDirection:"column", gap:12
+        background: `linear-gradient(135deg, ${C.card}, ${C.bg})`, border: `1px solid ${C.border}`, borderRadius:32, padding:24,
+        position: "relative", overflow: "hidden", boxShadow: C.shadow
       }}>
-        <div style={{position:"absolute", top:-30, right:-30, width:200, height:200, background:"rgba(255,255,255,0.15)", filter:"blur(50px)", borderRadius:"50%", animation:"float 8s ease-in-out infinite"}}/>
-        <div style={{position:"absolute", bottom:-40, left:-20, width:160, height:160, background:"rgba(0,0,0,0.08)", filter:"blur(40px)", borderRadius:"50%", animation:"float 10s ease-in-out infinite reverse"}}/>
-        
-        <div style={{display:"flex",alignItems:"center",gap:8,fontSize:10,fontWeight:800,letterSpacing:".12em",opacity:0.7, textTransform:"uppercase"}}>
-          <Ico n="wallet" sz={14} c="#000"/> NET BALANCE
-        </div>
-        <div style={{fontSize:44,fontWeight:900,letterSpacing:"-.04em",lineHeight:1,position:"relative",zIndex:1}}>{fmtAmt(stats.income-stats.expense)}</div>
-        
-        <div style={{display:"flex",alignItems:"center",gap:12,marginTop:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(0,0,0,0.1)",backdropFilter:"blur(8px)",padding:"6px 14px",borderRadius:14,fontSize:12,fontWeight:700}}>
-            <Ico n="trendUp" sz={14} c="#000"/> {fmtAmt(stats.income)}
+        <div style={{position:"absolute", top:-50, right:-50, width:150, height:150, background:C.primary, filter:"blur(80px)", opacity:0.1}}/>
+        <div style={{color:C.sub, fontSize:12, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em"}}>Current Net Worth</div>
+        <div style={{color:C.text, fontSize:36, fontWeight:900, margin:"8px 0", fontFamily:"'JetBrains Mono',monospace", letterSpacing:"-0.03em"}}>{fmtAmt(netWorth)}</div>
+        <div style={{display:"flex", alignItems:"center", gap:12, marginTop:16, borderTop: `1px solid ${C.border}`, paddingTop: 16}}>
+          <div style={{flex:1}}>
+            <div style={{color:C.sub, fontSize:10, fontWeight:700, marginBottom:4}}>30D CASH FLOW</div>
+            <Sparkline data={getDayFlow(30)} color={C.primary} height={40} />
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.12)",backdropFilter:"blur(8px)",padding:"6px 14px",borderRadius:14,fontSize:12,fontWeight:700}}>
-            <Ico n="trendDown" sz={14} c="#000"/> {fmtAmt(stats.expense)}
+          <div style={{width:1, height:40, background:C.border}}/>
+          <div style={{textAlign:"right"}}>
+            <div style={{color:C.income, fontSize:14, fontWeight:900}}>+{fmtAmt(transactions.filter(t=>t.creditDebit==="Credit" && t.date.startsWith(new Date().toISOString().slice(0,7))).reduce((s,t)=>s+t.amount,0))}</div>
+            <div style={{color:C.sub, fontSize:10, fontWeight:700}}>THIS MONTH</div>
           </div>
         </div>
       </div>
@@ -1032,7 +1259,24 @@ export default function App() {
 
       {/* Stats strip */}
       <div style={{display:"flex",gap:8,alignItems:"center", marginTop:4}}>
-        <span style={{color:C.sub,fontSize:12,flex:1, fontWeight:700}}>{filteredTx.length} transactions</span>
+        <div style={{flex:1}}>
+          <span style={{color:C.sub,fontSize:12, fontWeight:700}}>{filteredTx.length} transactions</span>
+          {(() => {
+            const groups = {};
+            transactions.forEach(t => {
+              const key = `${t.date}_${t.amount}_${t.description.toLowerCase().trim()}`;
+              if(!groups[key]) groups[key] = [];
+              groups[key].push(t);
+            });
+            const dupeCount = Object.values(groups).filter(g => g.length > 1).length;
+            if(dupeCount > 0) return (
+              <button onClick={()=>setShowDuplicates(true)} style={{display:"block", background:"none", border:"none", color:C.expense, fontSize:10, fontWeight:800, cursor:"pointer", padding:0, marginTop:2, textTransform:"uppercase"}}>
+                ⚠️ {dupeCount} Potential Duplicates Found
+              </button>
+            );
+            return null;
+          })()}
+        </div>
         <div style={{display:"flex", gap:8}}>
           <Btn v="ghost" sm icon="down" onClick={exportCSV}>CSV</Btn>
           <Btn v="ghost" sm icon="stars" onClick={exportTransactionsPDF}>PDF</Btn>
@@ -1040,15 +1284,48 @@ export default function App() {
         </div>
       </div>
 
-      {filteredTx.length===0 ? (
-        <div style={{background:C.card,borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:16,padding:32,textAlign:"center",color:C.sub,fontSize:13}}>
-          {transactions.length===0 ? "No transactions yet" : "No matches for current filters"}
-        </div>
-      ) : (
-        <div style={{display:"flex",flexDirection:"column",gap:9}}>
-          {filteredTx.map(t=>(
-            <TxRow key={t.id} t={t} categories={categories} tags={tags} accounts={accounts} onClick={()=>setEditTx({...t})}/>
-          ))}
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {filteredTx.length === 0 ? (
+          <div style={{padding:60,textAlign:"center",color:C.sub,fontSize:14}}>No transactions match your filters.</div>
+        ) : filteredTx.map(t=>(
+          <TxRow 
+            key={t.id} 
+            t={t} 
+            categories={categories} 
+            tags={tags} 
+            accounts={accounts} 
+            onClick={()=>setEditTx({...t})}
+            selected={selectedTxIds.includes(t.id)}
+            onSelect={(isSel) => setSelectedTxIds(p => isSel ? [...p, t.id] : p.filter(x => x !== t.id))}
+          />
+        ))}
+      </div>
+
+      {/* Bulk Actions Floating Bar */}
+      {selectedTxIds.length > 0 && (
+        <div style={{
+          position:"fixed", bottom:100, left:"50%", transform:"translateX(-50%)", width:"calc(100% - 40px)", maxWidth:500,
+          background:C.primary, color:"#000", borderRadius:20, padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between",
+          boxShadow:"0 12px 40px rgba(0,0,0,0.5)", zIndex:400, animation:"fadeIn 0.3s ease"
+        }}>
+          <div style={{display:"flex", alignItems:"center", gap:12}}>
+            <div style={{background:"#000", color:C.primary, width:28, height:28, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:900, fontFamily:"'JetBrains Mono',monospace"}}>
+              {selectedTxIds.length}
+            </div>
+            <span style={{fontSize:14, fontWeight:800}}>Selected</span>
+          </div>
+          <div style={{display:"flex", gap:8}}>
+             <button onClick={() => setSelectedTxIds([])} style={{background:"rgba(0,0,0,0.1)", border:"none", borderRadius:10, padding:"8px 14px", color:"#000", fontSize:12, fontWeight:700, cursor:"pointer"}}>Clear</button>
+             <button onClick={() => {
+               if(window.confirm(`Delete ${selectedTxIds.length} transactions?`)) {
+                 setTransactions(p => p.filter(t => !selectedTxIds.includes(t.id)));
+                 setSelectedTxIds([]);
+                 notify(`✓ ${selectedTxIds.length} transactions deleted`);
+               }
+             }} style={{background:"#000", border:"none", borderRadius:10, padding:"8px 14px", color:C.expense, fontSize:12, fontWeight:800, cursor:"pointer", display:"flex", alignItems:"center", gap:6, transition:"transform .2s"}} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.05)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+               <Ico n="trash" sz={14} c={C.expense}/> Delete
+             </button>
+          </div>
         </div>
       )}
     </div>
@@ -1100,48 +1377,28 @@ export default function App() {
         const emojis={Bank:"🏦","Credit Card":"💳",Wallet:"👛",Cash:"💵"};
         return (
           <div key={acc.id} style={{
-            background:C.card,borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:24,padding:20,
-            transition:"all .3s ease",backdropFilter:"blur(12px)",position:"relative",overflow:"hidden",
-            boxShadow:C.cardGlow||"none"
-          }} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.primary;e.currentTarget.style.transform="translateY(-2px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="translateY(0)";}}>
-            {/* Ambient glow */}
-            <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,background:C.primary,filter:"blur(40px)",opacity:0.06}}/>
-
-            <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <div style={{width:50,height:50,borderRadius:16,backgroundImage:`linear-gradient(135deg,${C.primary}22,${C.secondary}22)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0,borderWidth:1,borderStyle:"solid",borderColor:C.primary+"20"}}>{emojis[acc.type]||"🏦"}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{color:C.text,fontSize:16,fontWeight:800}}>{acc.name}</div>
-                <div style={{color:C.sub,fontSize:11,marginTop:2,fontWeight:600}}>{acc.type} · {txns.length} transactions</div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{color:bal>=0?C.income:C.expense,fontSize:18,fontWeight:900,fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(Math.abs(bal))}</div>
-                <div style={{color:C.sub,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",marginTop:2}}>{bal>=0?"Balance":"Deficit"}</div>
-              </div>
+            background:C.card, border:`1px solid ${C.border}`, borderRadius:24, padding:18,
+            display:"flex", flexDirection:"column", gap:12, transition:"all .3s ease",
+            backdropFilter:"blur(12px)", position:"relative", overflow:"hidden", boxShadow: C.cardGlow || "none"
+          }} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.primary;e.currentTarget.style.transform="translateY(-4px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="translateY(0)";}}>
+            <div style={{position:"absolute", top:-20, right:-20, width:60, height:60, background:C.primary, filter:"blur(40px)", opacity:0.05}}/>
+            
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start"}}>
+               <div style={{width:32, height:32, borderRadius:10, background:C.primaryDim, display:"flex", alignItems:"center", justifyCenter:"center"}}>
+                 <Ico n={acc.type==="Credit Card"?"list":"bank"} sz={16} c={C.primary}/>
+               </div>
+               <div style={{background:C.muted, padding:"2px 8px", borderRadius:6, color:C.sub, fontSize:10, fontWeight:700}}>{acc.type}</div>
             </div>
 
-            {/* Breakdown strip */}
-            <div style={{display:"flex",gap:8,marginTop:14,paddingTop:14,borderTop:`1px solid ${C.border}`}}>
-              {initBal > 0 && (
-                <div style={{flex:1,background:C.input,borderRadius:12,padding:"8px 10px"}}>
-                  <div style={{color:C.sub,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em"}}>Opening</div>
-                  <div style={{color:C.primary,fontSize:13,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>{fmtAmt(initBal)}</div>
-                </div>
-              )}
-              <div style={{flex:1,background:C.input,borderRadius:12,padding:"8px 10px"}}>
-                <div style={{color:C.sub,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em"}}>Income</div>
-                <div style={{color:C.income,fontSize:13,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>+{fmtAmt(txIncome)}</div>
-              </div>
-              <div style={{flex:1,background:C.input,borderRadius:12,padding:"8px 10px"}}>
-                <div style={{color:C.sub,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em"}}>Expense</div>
-                <div style={{color:C.expense,fontSize:13,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>−{fmtAmt(txExpense)}</div>
-              </div>
+            <div>
+               <div style={{color:C.sub, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:".05em"}}>Current Balance</div>
+               <div style={{color:bal>=0?C.income:C.expense, fontSize:22, fontWeight:900, fontFamily:"'JetBrains Mono',monospace", margin:"4px 0"}}>{fmtAmt(bal)}</div>
+               <div style={{color:C.text, fontSize:14, fontWeight:700, opacity:0.8}}>{acc.name}</div>
             </div>
 
-            {/* Delete action */}
-            <div style={{display:"flex",justifyContent:"flex-end",marginTop:10}}>
-              <button onClick={()=>setAccs(prev=>prev.filter(a=>a.id!==acc.id))} style={{background:C.expense+"15",borderWidth:1,borderStyle:"solid",borderColor:C.expense+"30",borderRadius:10,color:C.expense,cursor:"pointer",padding:"6px 14px",fontSize:11,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:6,transition:"all .2s ease"}}>
-                <Ico n="trash" sz={13} c={C.expense}/>Remove
-              </button>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8, borderTop:`1px solid ${C.border}`, paddingTop:12}}>
+               <div style={{color:C.sub, fontSize:10, fontWeight:600}}>{txns.length} transactions</div>
+               <button onClick={()=>setAccs(prev=>prev.filter(x=>x.id!==acc.id))} style={{background:"none", border:"none", color:C.sub, cursor:"pointer", opacity:0.4}} onMouseEnter={e=>e.currentTarget.style.opacity=1}><Ico n="trash" sz={14}/></button>
             </div>
           </div>
         );
@@ -1182,14 +1439,15 @@ export default function App() {
                   }} onMouseEnter={e=>{e.currentTarget.style.borderColor=cat.color;e.currentTarget.style.transform="translateY(-4px)"}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="translateY(0)"}}>
                     <div style={{position:"absolute",top:-20,right:-20,width:60,height:60,background:cat.color,filter:"blur(30px)",opacity:0.15}}/>
                     
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                      <div style={{width:36,height:36,borderRadius:12,backgroundImage:`linear-gradient(135deg,${cat.color}20,${cat.color}11)`,display:"flex",alignItems:"center",justifyContent:"center",borderWidth:1,borderStyle:"solid",borderColor:cat.color+"40"}}>
-                        <div style={{width:8,height:8,borderRadius:"50%",background:cat.color}}/>
+                      <div style={{width:36,height:36,borderRadius:12,backgroundImage:`linear-gradient(135deg,${cat.color}20,${cat.color}11)`,display:"flex",alignItems:"center",justifyContent:"center",borderWidth:1,borderStyle:"solid",borderColor:cat.color+"40", fontSize:20}}>
+                        {cat.emoji || <div style={{width:8,height:8,borderRadius:"50%",background:cat.color}}/>}
                       </div>
-                      {!DEF_CATS.some(d=>d.id===cat.id) && (
-                        <button onClick={()=>setCats(prev=>prev.filter(c=>c.id!==cat.id))} style={{background:C.muted,border:"none",borderRadius:"50%",color:C.sub,cursor:"pointer",padding:6,display:"flex"}}><Ico n="trash" sz={14}/></button>
-                      )}
-                    </div>
+                      <div style={{display:"flex",gap:6}}>
+                        <button onClick={()=>{setEditingCat(cat);setNewCat({name:cat.name,type:cat.type,color:cat.color,budget:cat.budget||"",emoji:cat.emoji||"💰"});setShowNewCat(true);}} style={{background:"none",border:"none",color:C.sub,cursor:"pointer",padding:4,display:"flex"}} onMouseEnter={e=>e.currentTarget.style.color=C.primary} onMouseLeave={e=>e.currentTarget.style.color=C.sub}><Ico n="pen" sz={14}/></button>
+                        {!DEF_CATS.some(d=>d.id===cat.id) && (
+                          <button onClick={()=>setCats(prev=>prev.filter(c=>c.id!==cat.id))} style={{background:"none",border:"none",color:C.sub,cursor:"pointer",padding:4,display:"flex"}} onMouseEnter={e=>e.currentTarget.style.color=C.expense} onMouseLeave={e=>e.currentTarget.style.color=C.sub}><Ico n="trash" sz={14}/></button>
+                        )}
+                      </div>
 
                     <div style={{flex:1, display:"flex", flexDirection:"column", justifyContent:"center"}}>
                       <div style={{color:C.text,fontSize:15,fontWeight:800, lineHeight:1.2}}>{cat.name}</div>
@@ -1237,8 +1495,8 @@ export default function App() {
             return (
               <div key={tg.id} style={{
                 background: C.card, border: `1px solid ${C.border}`, borderRadius: 24, padding: 16,
-                display: "flex", flexDirection: "column", gap: 12, transition: "all .3s ease",
-                backdropFilter: "blur(12px)", position: "relative", overflow: "hidden", minHeight: 140,
+                display: "flex", flexDirection:"column", gap: 12, transition: "all .3s ease",
+                backdropFilter: "blur(12px)", position:"relative", overflow: "hidden", minHeight: 140,
                 boxShadow: C.cardGlow || "none"
               }} onMouseEnter={e => { e.currentTarget.style.borderColor = tg.color; e.currentTarget.style.transform = "translateY(-4px)"; }} onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
                 <div style={{ position: "absolute", top: -20, right: -20, width: 60, height: 60, background: tg.color, filter: "blur(40px)", opacity: 0.15 }} />
@@ -1268,6 +1526,120 @@ export default function App() {
       )}
     </div>
   );
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PAGE: ORGANIZE (Categories + Tags + Budgets)
+  // ════════════════════════════════════════════════════════════════════════════
+  const Organize = (
+    <div className="page-enter" style={{padding:"16px 16px 100px 16px",display:"flex",flexDirection:"column",gap:20}}>
+      {/* Sub-tab switcher */}
+      <div style={{display:"flex",background:C.input,borderRadius:16,padding:4,border:`1px solid ${C.border}`, backdropFilter:"blur(12px)"}}>
+        {[{id:"categories",label:"Categories"},{id:"tags",label:"Tags"},{id:"budgets",label:"Budgets"},{id:"rules",label:"Rules"}].map(t=>(
+          <button key={t.id} onClick={()=>setOrganizeTab(t.id)} style={{
+            flex:1,padding:"10px",borderRadius:12,border:"none",cursor:"pointer",fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",
+            background:organizeTab===t.id?`linear-gradient(135deg, ${C.primary}, ${C.secondary})`:"transparent",
+            color:organizeTab===t.id?"#000":C.sub,
+            boxShadow:organizeTab===t.id?`0 4px 12px ${C.primaryDim}`:"none",
+            transition:"all .3s"
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {organizeTab === "categories" && Categories}
+      {organizeTab === "tags" && Tags}
+      {organizeTab === "budgets" && (
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          {categories.filter(c=>c.id!=="income").map(cat => {
+            const b = budgets.find(bg => bg.categoryId === cat.id);
+            const spent = transactions
+              .filter(t => t.category === cat.id && new Date(t.date).getMonth() === new Date().getMonth() && new Date(t.date).getFullYear() === new Date().getFullYear())
+              .reduce((s, t) => s + t.amount, 0);
+            const pct = b ? Math.min((spent / b.amount) * 100, 100) : 0;
+            const isOver = b && spent > b.amount;
+
+            return (
+              <div key={cat.id} style={{
+                background:C.card, borderRadius:24, padding:20, border:`1px solid ${C.border}`,
+                display:"flex", flexDirection:"column", gap:14, position:"relative", overflow:"hidden"
+              }}>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                  <div style={{display:"flex", alignItems:"center", gap:12}}>
+                    <div style={{width:40, height:40, borderRadius:12, background:cat.color+"15", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20}}>
+                      {cat.emoji || "📦"}
+                    </div>
+                    <div>
+                      <div style={{color:C.text, fontSize:14, fontWeight:800}}>{cat.name}</div>
+                      <div style={{color:C.sub, fontSize:10, fontWeight:700}}>{b ? `${fmtAmt(spent)} of ${fmtAmt(b.amount)}` : "No limit set"}</div>
+                    </div>
+                  </div>
+                  <Btn sm v={b ? "none" : "soft"} icon={b ? "pen" : "plus"} onClick={() => setEditingBudget(b || {categoryId:cat.id, amount:0})}>
+                    {b ? "" : "Set"}
+                  </Btn>
+                </div>
+
+                {b && (
+                  <div style={{height:8, background:C.input, borderRadius:4, overflow:"hidden"}}>
+                    <div style={{
+                      height:"100%", width:`${pct}%`, 
+                      background:isOver ? C.expense : C.primary,
+                      borderRadius:4, transition:"width .5s ease"
+                    }}/>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {organizeTab === "rules" && (
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{background:C.primaryDim, border:`1px solid ${C.primary}33`, borderRadius:20, padding:16, display:"flex", alignItems:"center", gap:12}}>
+            <div style={{width:32, height:32, borderRadius:8, background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:"#000"}}>🪄</div>
+            <div style={{flex:1}}>
+               <div style={{color:C.text, fontSize:12, fontWeight:800}}>Auto-Categorization</div>
+               <div style={{color:C.sub, fontSize:10}}>Rules automatically set categories based on keywords.</div>
+            </div>
+            <Btn sm icon="plus" onClick={()=>setEditingRule({pattern:"", categoryId:categories[0].id})}>Add</Btn>
+          </div>
+
+          {rules.length === 0 ? (
+            <div style={{padding:40, textAlign:"center", color:C.sub, fontSize:13}}>No rules defined yet.</div>
+          ) : (
+            <div style={{display:"flex", flexDirection:"column", gap:12}}>
+              {rules.map(rule => (
+                <div key={rule.id} style={{background:C.card, borderRadius:20, padding:16, border:`1px solid ${C.border}`, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                   <div style={{display:"flex", flexDirection:"column", gap:4}}>
+                      <div style={{color:C.text, fontSize:13, fontWeight:700}}>If description contains <span style={{color:C.secondary}}>"{rule.pattern}"</span></div>
+                      <div style={{display:"flex", alignItems:"center", gap:6}}>
+                         <div style={{width:6, height:6, borderRadius:"50%", background:categories.find(c=>c.id===rule.categoryId)?.color || C.primary}}/>
+                         <div style={{color:C.sub, fontSize:11, fontWeight:600}}>Set category to {categories.find(c=>c.id===rule.categoryId)?.name}</div>
+                      </div>
+                   </div>
+                   <div style={{display:"flex", gap:8}}>
+                      <button onClick={()=>setEditingRule(rule)} style={{background:"none", border:"none", color:C.sub}}><Ico n="pen" sz={14}/></button>
+                      <button onClick={()=>setRules(prev=>prev.filter(r=>r.id !== rule.id))} style={{background:"none", border:"none", color:C.expense}}><Ico n="trash" sz={14}/></button>
+                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Btn v="soft" full icon="stars" onClick={() => {
+            let count = 0;
+            setTransactions(prev => prev.map(t => {
+              const matchingRule = rules.find(r => t.description.toLowerCase().includes(r.pattern.toLowerCase()));
+              if(matchingRule) {
+                count++;
+                return {...t, category: matchingRule.categoryId};
+              }
+              return t;
+            }));
+            notify(`✨ Applied rules to ${count} transactions`);
+          }}>Magic Wand: Apply to All</Btn>
+        </div>
+      )}
+    </div>
+  );
   
   // ════════════════════════════════════════════════════════════════════════════
   // PAGE: REPORTS
@@ -1279,19 +1651,48 @@ export default function App() {
         <p style={{fontSize:12,color:C.sub,margin:"4px 0 0",fontWeight:600,opacity:0.7}}>Deep insights into your financial flow.</p>
       </div>
 
-      {/* Tab Selector */}
+      {/* Tab Selector (Week/Month/Year) */}
       <div style={{display:"flex",background:C.input,borderRadius:16,padding:4,borderWidth:1,borderStyle:"solid",borderColor:C.border, backdropFilter:"blur(16px)"}}>
         {["week","month","year"].map(t=>(
           <button key={t} onClick={()=>setReportTab(t)} style={{
             flex:1,padding:"11px",borderRadius:12,borderWidth:0,borderStyle:"solid",borderColor:"transparent",cursor:"pointer",fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",
             backgroundImage:reportTab===t?`linear-gradient(135deg, ${C.primary}, ${C.secondary})`: "none", 
-            backgroundColor:reportTab===t?"transparent":"transparent",
-            backgroundSize:"200% 200%", animation:reportTab===t?"gradientShift 3s ease infinite":"none",
             color:reportTab===t? "#000" : C.sub,
             boxShadow:reportTab===t?`0 4px 16px ${C.primaryDim}`:"none",
             transition:"all .35s cubic-bezier(0.16, 1, 0.3, 1)"
           }}>{t}</button>
         ))}
+      </div>
+
+      {/* Mode & Sub-Tab Switchers (Phase 3) */}
+      <div style={{display:"flex", gap:10, alignItems:"center"}}>
+        {/* Mode: Category vs Tag */}
+        <div style={{display:"flex", background:C.input, borderRadius:12, padding:3, border:`1px solid ${C.border}`, flex:1}}>
+          {[{id:"category",icon:"widgets",label:"Cat"},{id:"tag",icon:"tag",label:"Tag"}].map(m => (
+            <button key={m.id} onClick={()=>setReportsMode(m.id)} style={{
+              flex:1, padding:"6px", borderRadius:9, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              background:reportsMode===m.id?C.primaryDim:"transparent",
+              color:reportsMode===m.id?C.primary:C.sub, transition:"all .3s"
+            }}>
+              <Ico n={m.icon} sz={12} c={reportsMode===m.id?C.primary:C.sub}/>
+              <span style={{fontSize:10, fontWeight:800, textTransform:"uppercase"}}>{m.label}</span>
+            </button>
+          ))}
+        </div>
+        
+        {/* Sub-Tab: Breakdown vs Trend */}
+        <div style={{display:"flex", background:C.input, borderRadius:12, padding:3, border:`1px solid ${C.border}`, flex:1.2}}>
+          {[{id:"breakdown",icon:"analyze",label:"Breakdown"},{id:"trend",icon:"trending",label:"Trend"}].map(s => (
+            <button key={s.id} onClick={()=>setReportsSubTab(s.id)} style={{
+              flex:1, padding:"6px", borderRadius:9, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              background:reportsSubTab===s.id?C.primaryDim:"transparent",
+              color:reportsSubTab===s.id?C.primary:C.sub, transition:"all .3s"
+            }}>
+              <Ico n={s.icon} sz={12} c={reportsSubTab===s.id?C.primary:C.sub}/>
+              <span style={{fontSize:10, fontWeight:800, textTransform:"uppercase"}}>{s.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Period Navigation */}
@@ -1317,29 +1718,65 @@ export default function App() {
 
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         {(() => {
-          let filtered = [];
-          if(reportTab === "week") {
-            const start = new Date(reportDate); start.setDate(reportDate.getDate() - reportDate.getDay());
-            const end = new Date(start); end.setDate(start.getDate() + 6);
-            filtered = transactions.filter(t => { const d = new Date(t.date); return d >= start && d <= end; });
-          } else if(reportTab === "month") {
-            filtered = transactions.filter(t => { const d=new Date(t.date); return d.getMonth()===reportDate.getMonth() && d.getFullYear()===reportDate.getFullYear(); });
-          } else {
-            filtered = transactions.filter(t => new Date(t.date).getFullYear() === reportDate.getFullYear());
-          }
+          let filtered = [], prevFiltered = [];
+          const getRange = (base, offset = 0) => {
+            const d = new Date(base);
+            if(reportTab === "week") d.setDate(d.getDate() + (offset * 7));
+            else if(reportTab === "month") d.setMonth(d.getMonth() + offset);
+            else d.setFullYear(d.getFullYear() + offset);
+            return d;
+          };
 
-          const inc = filtered.filter(t=>t.txType==="Income").reduce((s,t)=>s+t.amount,0);
-          const exp = filtered.filter(t=>t.txType==="Expense").reduce((s,t)=>s+t.amount,0);
-          const net = inc - exp;
-          const savingsRate = inc > 0 ? Math.round(((inc - exp) / inc) * 100) : 0;
-          const txCount = filtered.length;
+          const filterByRange = (date) => {
+            if(reportTab === "week") {
+              const start = new Date(date); start.setDate(date.getDate() - date.getDay());
+              const end = new Date(start); end.setDate(start.getDate() + 6);
+              return transactions.filter(t => { const dt = new Date(t.date); return dt >= start && dt <= end; });
+            } else if(reportTab === "month") {
+              return transactions.filter(t => { const dt=new Date(t.date); return dt.getMonth()===date.getMonth() && dt.getFullYear()===date.getFullYear(); });
+            } else {
+              return transactions.filter(t => new Date(t.date).getFullYear() === date.getFullYear());
+            }
+          };
 
-          // Category data
-          const catData = Object.entries(filtered.reduce((acc,t)=>{
-            const c = categories.find(cat=>cat.id===t.category)?.name || "Other";
-            acc[c] = (acc[c]||0) + t.amount; return acc;
+          filtered = filterByRange(reportDate);
+          prevFiltered = filterByRange(getRange(reportDate, -1));
+
+          const getStats = (list) => {
+            const inc = list.filter(t=>t.txType==="Income").reduce((s,t)=>s+t.amount,0);
+            const exp = list.filter(t=>t.txType==="Expense").reduce((s,t)=>s+t.amount,0);
+            const inv = list.filter(t=>t.txType==="Investment").reduce((s,t)=>s+t.amount,0);
+            return { inc, exp, inv, net: inc - exp };
+          };
+
+          const s = getStats(filtered);
+          const ps = getStats(prevFiltered);
+
+          const pct = (curr, prev) => {
+            if(!prev) return curr > 0 ? 100 : 0;
+            return Math.round(((curr - prev) / prev) * 100);
+          };
+
+          const savingsRate = s.inc > 0 ? Math.round(((s.inc - s.exp) / s.inc) * 100) : 0;
+
+          // Aggregation logic (Category or Tag)
+          const aggrData = Object.entries(filtered.reduce((acc,t)=>{
+            if(reportsMode === "category") {
+              const c = categories.find(cat=>cat.id===t.category)?.name || "Other";
+              acc[c] = (acc[c]||0) + t.amount;
+            } else {
+              if(!t.tags || t.tags.length === 0) {
+                acc["Untagged"] = (acc["Untagged"]||0) + t.amount;
+              } else {
+                t.tags.forEach(tid => {
+                  const tn = tags.find(tg=>tg.id===tid)?.name || "Unknown";
+                  acc[tn] = (acc[tn]||0) + t.amount;
+                });
+              }
+            }
+            return acc;
           }, {})).sort((a,b)=>b[1]-a[1]);
-          const maxCatVal = catData.length > 0 ? catData[0][1] : 1;
+          const maxVal = aggrData.length > 0 ? aggrData[0][1] : 1;
 
           return (
             <>
@@ -1348,16 +1785,16 @@ export default function App() {
                 background:C.card, borderWidth:1,borderStyle:"solid",borderColor:C.border, borderRadius:28, padding:24,
                 backdropFilter:"blur(16px) saturate(200%)", boxShadow:C.cardGlow||"none", position:"relative", overflow:"hidden"
               }}>
-                <div style={{position:"absolute",top:-20,right:-20,width:120,height:120,background:net>=0?C.income:C.expense,filter:"blur(60px)",opacity:0.08,borderRadius:"50%"}}/>
+                <div style={{position:"absolute",top:-20,right:-20,width:120,height:120,background:s.net>=0?C.income:C.expense,filter:"blur(60px)",opacity:0.08,borderRadius:"50%"}}/>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{color:C.sub,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".1em",marginBottom:8}}>Net Flow</div>
-                    <div style={{color:net>=0?C.income:C.expense,fontSize:32,fontWeight:900,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"-.02em"}}>
-                      {net>=0?"+":"−"}{fmtAmt(Math.abs(net))}
+                    <div style={{color:s.net>=0?C.income:C.expense,fontSize:32,fontWeight:900,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"-.02em"}}>
+                      {s.net>=0?"+":"−"}{fmtAmt(Math.abs(s.net))}
                     </div>
-                    <div style={{color:C.sub,fontSize:11,marginTop:6,fontWeight:600}}>{txCount} transactions this {reportTab}</div>
+                    <div style={{color:C.sub,fontSize:11,marginTop:6,fontWeight:600}}>{filtered.length} transactions this {reportTab}</div>
                   </div>
-                  {inc > 0 && (
+                  {s.inc > 0 && (
                     <div style={{textAlign:"center"}}>
                       <div style={{width:64,height:64,borderRadius:"50%",border:`3px solid ${savingsRate>=0?C.income:C.expense}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${savingsRate>=0?C.income+"22":C.expense+"22"}`}}>
                         <span style={{fontSize:16,fontWeight:900,color:savingsRate>=0?C.income:C.expense,fontFamily:"'JetBrains Mono',monospace"}}>{savingsRate}%</span>
@@ -1368,59 +1805,121 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Income / Expense Cards */}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <div style={{background:C.card,padding:20,borderRadius:24,borderWidth:1,borderStyle:"solid",borderColor:C.border,display:"flex",flexDirection:"column",gap:8, backdropFilter:"blur(16px) saturate(200%)", boxShadow:C.cardGlow||"none", position:"relative", overflow:"hidden"}}>
-                  <div style={{position:"absolute",bottom:-10,left:-10,width:60,height:60,background:C.income,filter:"blur(40px)",opacity:0.08,borderRadius:"50%"}}/>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:8,height:8,borderRadius:"50%",background:C.income,boxShadow:`0 0 8px ${C.income}44`}}/>
-                    <span style={{color:C.income,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em"}}>Income</span>
-                  </div>
-                  <div style={{color:C.text,fontSize:20,fontWeight:900,fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(inc)}</div>
-                </div>
-                <div style={{background:C.card,padding:20,borderRadius:24,borderWidth:1,borderStyle:"solid",borderColor:C.border,display:"flex",flexDirection:"column",gap:8, backdropFilter:"blur(16px) saturate(200%)", boxShadow:C.cardGlow||"none", position:"relative", overflow:"hidden"}}>
-                  <div style={{position:"absolute",bottom:-10,right:-10,width:60,height:60,background:C.expense,filter:"blur(40px)",opacity:0.08,borderRadius:"50%"}}/>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:8,height:8,borderRadius:"50%",background:C.expense,boxShadow:`0 0 8px ${C.expense}44`}}/>
-                    <span style={{color:C.expense,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em"}}>Expense</span>
-                  </div>
-                  <div style={{color:C.text,fontSize:20,fontWeight:900,fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(exp)}</div>
-                </div>
-              </div>
-
-              {/* Category Breakdown */}
-              <div style={{background:C.card,padding:24,borderRadius:28,borderWidth:1,borderStyle:"solid",borderColor:C.border, backdropFilter:"blur(16px) saturate(200%)", boxShadow:C.cardGlow||"none"}}>
-                <div style={{color:C.text,fontSize:14,fontWeight:800,marginBottom:20, display:"flex", alignItems:"center", gap:8}}>
-                  <Ico n="chart" sz={16} c={C.primary}/> Category Breakdown
-                  {catData.length > 0 && <span style={{marginLeft:"auto",color:C.sub,fontSize:11,fontWeight:600}}>{catData.length} categories</span>}
-                </div>
-                {filtered.length === 0 ? (
-                  <div style={{color:C.sub,fontSize:13,textAlign:"center",padding:32}}>
-                    <div style={{fontSize:32,marginBottom:8,opacity:0.5}}>📊</div>
-                    No transactions recorded for this {reportTab}
-                  </div>
-                ) : (
-                  catData.map(([name,val],i)=>{
-                    const cat = categories.find(c=>c.name===name);
-                    const catColor = cat?.color || C.primary;
-                    const pct = Math.round((val/maxCatVal)*100);
-                    return (
-                      <div key={i} style={{marginBottom:i<catData.length-1?18:0}}>
-                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,alignItems:"center"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            <div style={{width:8,height:8,borderRadius:"50%",background:catColor,boxShadow:`0 0 6px ${catColor}44`}}/>
-                            <span style={{color:C.text,fontSize:13,fontWeight:700}}>{name}</span>
-                          </div>
-                          <span style={{color:C.sub,fontSize:12,fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(val)}</span>
-                        </div>
-                        <div style={{height:6,background:C.muted,borderRadius:4,overflow:"hidden"}}>
-                          <div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg, ${catColor}, ${catColor}aa)`,borderRadius:4,transition:"width 1s cubic-bezier(0.16, 1, 0.3, 1)",boxShadow:`0 0 8px ${catColor}33`}}/>
-                        </div>
+              {reportsSubTab === "breakdown" ? (
+                <>
+                  {/* Income/Expense Cards */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                    <div style={{background:C.card,padding:20,borderRadius:24,borderWidth:1,borderStyle:"solid",borderColor:C.border,display:"flex",flexDirection:"column",gap:8, backdropFilter:"blur(16px) saturate(200%)", boxShadow:C.cardGlow||"none", position:"relative", overflow:"hidden"}}>
+                      <div style={{position:"absolute",bottom:-10,left:-10,width:60,height:60,background:C.income,filter:"blur(40px)",opacity:0.08,borderRadius:"50%"}}/>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{width:8,height:8,borderRadius:"50%",background:C.income,boxShadow:`0 0 8px ${C.income}44`}}/>
+                        <span style={{color:C.income,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em"}}>Income</span>
                       </div>
-                    );
-                  })
-                )}
-              </div>
+                      <div style={{color:C.text,fontSize:20,fontWeight:900,fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(s.inc)}</div>
+                    </div>
+                    <div style={{background:C.card,padding:20,borderRadius:24,borderWidth:1,borderStyle:"solid",borderColor:C.border,display:"flex",flexDirection:"column",gap:8, backdropFilter:"blur(16px) saturate(200%)", boxShadow:C.cardGlow||"none", position:"relative", overflow:"hidden"}}>
+                      <div style={{position:"absolute",bottom:-10,right:-10,width:60,height:60,background:C.expense,filter:"blur(40px)",opacity:0.08,borderRadius:"50%"}}/>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{width:8,height:8,borderRadius:"50%",background:C.expense,boxShadow:`0 0 8px ${C.expense}44`}}/>
+                        <span style={{color:C.expense,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".08em"}}>Expense</span>
+                      </div>
+                      <div style={{color:C.text,fontSize:20,fontWeight:900,fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(s.exp)}</div>
+                    </div>
+                  </div>
+
+                  {/* Aggregation Breakdown */}
+                  <div style={{background:C.card,padding:24,borderRadius:28,borderWidth:1,borderStyle:"solid",borderColor:C.border, backdropFilter:"blur(16px) saturate(200%)", boxShadow:C.cardGlow||"none"}}>
+                    <div style={{color:C.text,fontSize:14,fontWeight:800,marginBottom:20, display:"flex", alignItems:"center", gap:8}}>
+                       <Ico n={reportsMode==="category"?"widgets":"tag"} sz={16} c={C.primary}/>
+                       Spending by {reportsMode==="category"?"Category":"Tag"}
+                    </div>
+                    {aggrData.length === 0 ? (
+                      <div style={{padding:"20px 0", color:C.sub, fontSize:12, textAlign:"center"}}>No data for this period</div>
+                    ) : (
+                      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                        {aggrData.map(([name,val])=>(
+                          <div key={name} style={{display:"flex",flexDirection:"column",gap:8}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <span style={{color:C.text,fontSize:12,fontWeight:600}}>{name}</span>
+                              <span style={{color:C.text,fontSize:12,fontWeight:800,fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(val)}</span>
+                            </div>
+                            <div style={{height:8,background:C.input,borderRadius:4,overflow:"hidden"}}>
+                              <div style={{height:"100%",width:`${(val/maxVal)*100}%`,background:C.primary,borderRadius:4,transition:"width .5s cubic-bezier(0.16, 1, 0.3, 1)"}}/>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {reportTab === "year" && (
+                    <div style={{background:C.card, padding:24, borderRadius:28, border:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:20}}>
+                       <div style={{color:C.text, fontSize:14, fontWeight:800}}>Monthly Distribution</div>
+                       <div style={{display:"flex", gap:4, height:140, alignItems:"flex-end", paddingBottom:20}}>
+                          {Array.from({length:12}).map((_, i) => {
+                             const mFiltered = filtered.filter(t => new Date(t.date).getMonth() === i);
+                             const mi = mFiltered.filter(t=>t.txType==="Income").reduce((s,t)=>s+t.amount,0);
+                             const me = mFiltered.filter(t=>t.txType==="Expense").reduce((s,t)=>s+t.amount,0);
+                             const mMax = Math.max(mi, me, 1);
+                             return (
+                               <div key={i} style={{flex:1, height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:2, position:"relative"}}>
+                                  <div style={{height:`${(mi/s.inc||0)*100}%`, background:C.income, width:"100%", borderRadius:"2px 2px 0 0", opacity:0.6}}/>
+                                  <div style={{height:`${(me/s.exp||0)*100}%`, background:C.expense, width:"100%", borderRadius:"0 0 2px 2px"}}/>
+                                  <div style={{position:"absolute", bottom:-18, left:0, width:"100%", textAlign:"center", fontSize:8, fontWeight:800, color:C.sub}}>
+                                    {new Date(0, i).toLocaleString("en",{month:"short"}).charAt(0)}
+                                  </div>
+                               </div>
+                             );
+                          })}
+                       </div>
+                       <div style={{display:"flex", gap:12, justifyContent:"center"}}>
+                          <div style={{display:"flex", alignItems:"center", gap:4}}><div style={{width:8, height:8, background:C.income, borderRadius:2}}/><span style={{fontSize:9, color:C.sub}}>Income</span></div>
+                          <div style={{display:"flex", alignItems:"center", gap:4}}><div style={{width:8, height:8, background:C.expense, borderRadius:2}}/><span style={{fontSize:9, color:C.sub}}>Expense</span></div>
+                       </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{display:"flex", flexDirection:"column", gap:16}}>
+                   {/* Trend Cards */}
+                   {[{label:"Income", cur:s.inc, prev:ps.inc, color:C.income}, {label:"Expense", cur:s.exp, prev:ps.exp, color:C.expense}, {label:"Net Flow", cur:s.net, prev:ps.net, color:C.primary}].map(item => {
+                     const change = pct(item.cur, item.prev);
+                     const isUp = change >= 0;
+                     return (
+                       <div key={item.label} style={{background:C.card, borderRadius:24, padding:20, border:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:16, animation:"fadeIn 0.3s ease"}}>
+                          <div style={{width:48, height:48, borderRadius:16, background:item.color+"15", display:"flex", alignItems:"center", justifyContent:"center"}}>
+                             <Ico n={isUp ? "trending" : "analyze"} sz={20} c={item.color}/>
+                          </div>
+                          <div style={{flex:1}}>
+                             <div style={{color:C.sub, fontSize:10, fontWeight:800, textTransform:"uppercase", letterSpacing:".08em"}}>{item.label}</div>
+                             <div style={{display:"flex", alignItems:"baseline", gap:8, marginTop:4}}>
+                                <span style={{color:C.text, fontSize:18, fontWeight:900, fontFamily:"'JetBrains Mono',monospace"}}>{fmtAmt(item.cur)}</span>
+                                <span style={{color:isUp ? (item.label==="Expense" ? C.expense : C.income) : (item.label==="Expense" ? C.income : C.expense), fontSize:11, fontWeight:800}}>
+                                   {isUp ? "↑" : "↓"} {Math.abs(change)}%
+                                </span>
+                             </div>
+                          </div>
+                          <div style={{textAlign:"right"}}>
+                             <div style={{color:C.sub, fontSize:9, fontWeight:600}}>Prev Period</div>
+                             <div style={{color:C.sub, fontSize:12, fontWeight:700, opacity:0.6}}>{fmtAmt(item.prev)}</div>
+                          </div>
+                       </div>
+                     );
+                   })}
+                   
+                   {/* Summary Comparison Bar */}
+                   <div style={{background:C.card, borderRadius:24, padding:20, border:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:12}}>
+                      <div style={{color:C.text, fontSize:12, fontWeight:800}}>Performance vs Prev {reportTab}</div>
+                      <div style={{display:"flex", gap:4, height:24, borderRadius:8, overflow:"hidden"}}>
+                         <div style={{flex:ps.exp||1, background:C.border, display:"flex", alignItems:"center", justifyContent:"center", color:C.sub, fontSize:9, fontWeight:900}}>PREV</div>
+                         <div style={{flex:s.exp||1, background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", color:"#000", fontSize:9, fontWeight:900}}>CURR</div>
+                      </div>
+                      <div style={{color:C.sub, fontSize:10, lineHeight:1.4}}>
+                        {s.exp > ps.exp ? `Your spending increased by ${fmtAmt(s.exp - ps.exp)} compared to last ${reportTab}.` : `Great! You spent ${fmtAmt(ps.exp - s.exp)} less than last ${reportTab}.`}
+                      </div>
+                   </div>
+                </div>
+              )}
 
               {/* Reports Actions */}
               <div style={{display:"flex", gap:10, marginTop:10}}>
@@ -1440,11 +1939,9 @@ export default function App() {
                   const doc = new jsPDF();
                   const titleStr = reportTab==="week" ? `Week of ${reportDate.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}` : reportTab==="month" ? reportDate.toLocaleString("en",{month:"long",year:"numeric"}) : reportDate.getFullYear().toString();
                   
-                  // Design constants based on theme
-                  const accent = [0, 229, 255]; // Primary neon
+                  const accent = [0, 229, 255]; 
                   
-                  // Header
-                  doc.setFillColor(15, 23, 42); // Dark surface
+                  doc.setFillColor(15, 23, 42); 
                   doc.rect(0, 0, 210, 40, "F");
                   
                   doc.setFontSize(22);
@@ -1458,7 +1955,6 @@ export default function App() {
                   doc.setTextColor(150, 150, 150);
                   doc.text(`Generated: ${new Date().toLocaleString()}`, 195, 20, { align: "right" });
                   
-                  // Stats Grid
                   doc.setFillColor(248, 250, 252);
                   doc.roundedRect(15, 45, 58, 25, 3, 3, "F");
                   doc.roundedRect(76, 45, 58, 25, 3, 3, "F");
@@ -1471,22 +1967,21 @@ export default function App() {
                   doc.text("NET FLOW", 142, 52);
                   
                   doc.setFontSize(14);
-                  doc.setTextColor(0, 180, 100); // Income
-                  doc.text(`Rs. ${inc.toLocaleString()}`, 20, 62);
-                  doc.setTextColor(220, 50, 50); // Expense
-                  doc.text(`Rs. ${exp.toLocaleString()}`, 81, 62);
-                  doc.setTextColor(net >= 0 ? 0 : 220, net >= 0 ? 180 : 50, net >= 0 ? 100 : 50);
-                  doc.text(`Rs. ${net.toLocaleString()}`, 142, 62);
+                  doc.setTextColor(0, 180, 100); 
+                  doc.text(`Rs. ${s.inc.toLocaleString()}`, 20, 62);
+                  doc.setTextColor(220, 50, 50); 
+                  doc.text(`Rs. ${s.exp.toLocaleString()}`, 81, 62);
+                  doc.setTextColor(s.net >= 0 ? 0 : 220, s.net >= 0 ? 180 : 50, s.net >= 0 ? 100 : 50);
+                  doc.text(`Rs. ${s.net.toLocaleString()}`, 142, 62);
                   
-                  // Category Breakdown
                   doc.setFontSize(14);
                   doc.setTextColor(15, 23, 42);
-                  doc.text("Category Breakdown", 15, 85);
+                  doc.text(`${reportsMode==="category"?"Category":"Tag"} Breakdown`, 15, 85);
                   
-                  const tableRows = catData.map(([name, val]) => [name, fmtAmt(val), `${Math.round((val/exp)*100)}%`]);
+                  const tableRows = aggrData.map(([name, val]) => [name, fmtAmt(val), `${s.exp > 0 ? Math.round((val/s.exp)*100) : 0}%`]);
                   autoTable(doc, {
                     startY: 90,
-                    head: [["Category", "Amount", "Weight"]],
+                    head: [[reportsMode==="category"?"Category":"Tag", "Amount", "Weight"]],
                     body: tableRows,
                     theme: "striped",
                     headStyles: { fillColor: accent, textColor: 0, fontStyle: "bold" },
@@ -1732,8 +2227,60 @@ export default function App() {
     </div>
   );
 
-  const pageMap={dashboard:Dashboard,transactions:Transactions,reports:ReportsPage,accounts:Accounts,categories:Categories,tags:Tags};
-  const titleMap={dashboard:"Expense 💰",transactions:"Transactions",reports:"Wealth Report",accounts:"Accounts",categories:"Categories",tags:"Tags"};
+  const SettingsPage = (
+    <div className="page-enter" style={{padding:"20px 20px 100px 20px",display:"flex",flexDirection:"column",gap:24}}>
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+         <h1 style={{fontSize:24,fontWeight:900,color:C.text,margin:0,letterSpacing:"-.03em"}}>Settings</h1>
+         <div style={{background:C.primaryDim, color:C.primary, padding:"4px 10px", borderRadius:10, fontSize:10, fontWeight:800}}>V2.0.0 "OBSIDIAN"</div>
+      </div>
+
+      <div style={{display:"flex", flexDirection:"column", gap:16}}>
+        {/* Section: Data Management */}
+        <div style={{background:C.card, borderRadius:24, border:`1px solid ${C.border}`, padding:20, display:"flex", flexDirection:"column", gap:16}}>
+           <div style={{color:C.sub, fontSize:10, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em"}}>Data Management</div>
+           <div style={{display:"flex", flexDirection:"column", gap:10}}>
+              <Btn v="soft" full icon="cloud" onClick={()=>setShowBackup(true)}>Cloud Sync & Backups</Btn>
+              <Btn v="ghost" full icon="down" onClick={exportBackup}>Export as JSON</Btn>
+              <Btn v="ghost" full icon="upload" onClick={()=>importRef.current?.click()}>Import from JSON</Btn>
+              <Btn v="danger" full icon="trash" onClick={() => {
+                if(window.confirm("PERMANENT DELETE? This will wipe ALL transactions and data. No undo.")) {
+                  setTransactions([]);
+                  setAccounts([]);
+                  setBudgets([]);
+                  setRules([]);
+                  notify("✓ All data cleared");
+                }
+              }}>Clear All Data</Btn>
+           </div>
+        </div>
+
+        {/* Section: Preferences */}
+        <div style={{background:C.card, borderRadius:24, border:`1px solid ${C.border}`, padding:20, display:"flex", flexDirection:"column", gap:16}}>
+           <div style={{color:C.sub, fontSize:10, fontWeight:800, textTransform:"uppercase", letterSpacing:".1em"}}>Preferences</div>
+           <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"4px 0"}}>
+              <div style={{display:"flex", alignItems:"center", gap:12}}>
+                 <div style={{width:32, height:32, borderRadius:10, background:C.primaryDim, display:"flex", alignItems:"center", justifyContent:"center"}}><Ico n={themeMode==="dark"?"moon":"sun"} sz={16} c={C.primary}/></div>
+                 <div style={{fontSize:14, fontWeight:700}}>Dark Mode</div>
+              </div>
+              <button onClick={toggleTheme} style={{width:48, height:24, borderRadius:12, background:themeMode==="dark"?C.primary:"#333", border:"none", position:"relative", cursor:"pointer", transition:"background .3s"}}>
+                 <div style={{position:"absolute", left:themeMode==="dark"?"calc(100% - 22px)":"2px", top:2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left .3s"}}/>
+              </button>
+           </div>
+        </div>
+
+        {/* Section: About */}
+        <div style={{background:C.card, borderRadius:24, border:`1px solid ${C.border}`, padding:20, textAlign:"center"}}>
+           <div style={{fontSize:40, marginBottom:12}}>💎</div>
+           <div style={{color:C.text, fontSize:16, fontWeight:800}}>MoneyLens V2</div>
+           <div style={{color:C.sub, fontSize:12, marginTop:4}}>Designed for Privacy & Speed.</div>
+           <div style={{color:C.sub, fontSize:10, marginTop:16}}>© 2026 Antigravity OS Project</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const pageMap={dashboard:Dashboard,transactions:Transactions,reports:ReportsPage,accounts:Accounts,organize:Organize,settings:SettingsPage};
+  const titleMap={dashboard:"Expense 💰",transactions:"Transactions",reports:"Wealth Report",accounts:"Vault",organize:"Organize",settings:"Settings"};
 
   // ════════════════════════════════════════════════════════════════════════════
   // LOGIN SCREEN
@@ -1776,16 +2323,22 @@ export default function App() {
 
       {/* Header */}
       <div style={{position:"sticky",top:0,zIndex:300,background:C.headerBg,backdropFilter:"blur(32px) saturate(200%)",borderBottom:`1px solid ${C.border}`,padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <span style={{fontSize:20,fontWeight:900,letterSpacing:"-.04em", backgroundImage:`linear-gradient(135deg, ${C.primary}, ${C.secondary})`, backgroundSize:"200% 200%", animation:"gradientShift 4s ease infinite", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>{titleMap[page]}</span>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <span style={{fontSize:20,fontWeight:900,letterSpacing:"-.04em", backgroundImage:`linear-gradient(135deg, ${C.primary}, ${C.secondary})`, backgroundSize:"200% 200%", animation:"gradientShift 4s ease infinite", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>{titleMap[page]}</span>
+          
+          {/* Sync Status Indicator */}
+          <div onClick={()=>setShowBackup(true)} style={{display:"flex", alignItems:"center", gap:6, background:C.input, padding:"4px 10px", borderRadius:10, cursor:"pointer", border:`1px solid ${C.border}`}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.primary} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+             <div style={{width:8, height:8, borderRadius:"50%", background:syncStatus==="synced"?C.income:syncStatus==="pending"?"#f59e0b":syncStatus==="error"?C.expense:C.sub, boxShadow:`0 0 10px ${syncStatus==="synced"?C.income:syncStatus==="error"?C.expense:"transparent"}`}}/>
+             <span style={{fontSize:9, fontWeight:800, color:C.sub, textTransform:"uppercase"}}>{syncStatus}</span>
+          </div>
+        </div>
+
         <div style={{display:"flex",gap:8}}>
           <button onClick={toggleTheme} style={{background:C.muted,borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:14,padding:"8px",color:C.text,cursor:"pointer",display:"flex",transition:"all .3s cubic-bezier(0.4,0,0.2,1)"}} onMouseOver={e=>{e.currentTarget.style.borderColor=C.primary;e.currentTarget.style.boxShadow=`0 0 16px ${C.primaryDim}`;}} onMouseOut={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>
             <Ico n={themeMode==="dark"?"sun":"moon"} sz={18}/>
           </button>
-           <button onClick={()=>setShowBackup(true)} style={{background:C.muted,borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:14,padding:"8px",color:C.text,cursor:"pointer",display:"flex",transition:"all .3s cubic-bezier(0.4,0,0.2,1)"}} onMouseOver={e=>{e.currentTarget.style.borderColor=C.primary;e.currentTarget.style.boxShadow=`0 0 16px ${C.primaryDim}`;}} onMouseOut={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}>
-            <Ico n="cloud" sz={18}/>
-          </button>
-          <button onClick={()=>setAddTx(true)} style={{backgroundImage:`linear-gradient(135deg, ${C.primary}, ${C.secondary})`,backgroundSize:"200% 200%",animation:"gradientShift 3s ease infinite",border:"none",borderRadius:14,padding:"8px 18px",color:"#000",cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,fontWeight:800,boxShadow:`0 4px 20px ${C.primaryDim}, 0 0 40px ${C.primaryDim}`,transition:"all .3s"}} onMouseOver={e=>e.currentTarget.style.transform="scale(1.05)"} onMouseOut={e=>e.currentTarget.style.transform="scale(1)"}>
-            <Ico n="plus" sz={16} c="#000"/> Add
+           <button onClick={()=>setPage("settings")} style={{background:page==="settings"?C.primaryDim:C.muted,borderWidth:1,borderStyle:"solid",borderColor:page==="settings"?C.primary:C.border,borderRadius:14,padding:"8px",color:page==="settings"?C.primary:C.text,cursor:"pointer",display:"flex",transition:"all .3s cubic-bezier(0.4,0,0.2,1)"}} onMouseOver={e=>{e.currentTarget.style.borderColor=C.primary;e.currentTarget.style.boxShadow=`0 0 16px ${C.primaryDim}`;}} onMouseOut={e=>{if(page!=="settings"){e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow="none";}}}>
+            <Ico n="settings" sz={18} c={page==="settings"?C.primary:"currentColor"}/>
           </button>
         </div>
       </div>
@@ -1801,7 +2354,13 @@ export default function App() {
 
       {/* Bottom Nav */}
       <nav style={{position:"fixed",bottom:16,left:"50%",transform:"translateX(-50%)",width:"calc(100% - 40px)",maxWidth:560,background:C.navBg,backdropFilter:"blur(32px) saturate(200%)",borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:28,display:"flex",padding:"8px 6px",zIndex:200, boxShadow:`${C.shadow}, 0 0 60px ${C.glow1||"transparent"}`}}>
-        {[{id:"dashboard",icon:"home",label:"Home"},{id:"transactions",icon:"list",label:"Txns"},{id:"reports",icon:"chart",label:"Report"},{id:"categories",icon:"grid",label:"Specs"},{id:"tags",icon:"tag",label:"Tags"},{id:"accounts",icon:"bank",label:"Vault"}].map(n=>(
+        {[
+          {id:"dashboard",icon:"home",label:"Home"},
+          {id:"transactions",icon:"list",label:"Txns"},
+          {id:"reports",icon:"chart",label:"Report"},
+          {id:"organize",icon:"grid",label:"Organize"},
+          {id:"accounts",icon:"bank",label:"Vault"}
+        ].map(n=>(
           <button key={n.id} onClick={()=>setPage(n.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"6px 0",color:page===n.id?C.primary:C.sub,fontFamily:"inherit",transition:"all .4s cubic-bezier(0.16, 1, 0.3, 1)", transform:page===n.id?"translateY(-3px)":"translateY(0)"}}>
             <div style={{position:"relative", display:"flex", alignItems:"center", justifyContent:"center"}}>
               {page===n.id && <div style={{position:"absolute", width:40, height:40, background:C.primaryDim, borderRadius:"14px", filter:"blur(12px)", animation:"pulseGlow 2s ease-in-out infinite"}}/>}
@@ -1811,6 +2370,26 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {/* ── FLOATING ACTION BUTTON (FAB) ─────────────────────────────────── */}
+      <div style={{position:"fixed", bottom:100, right:24, zIndex:250}}>
+         <button onClick={()=>setAddTx(true)} style={{
+           width:60, height:60, borderRadius:22, border:"none", cursor:"pointer",
+           backgroundImage:`linear-gradient(135deg, ${C.primary}, ${C.secondary})`, backgroundSize:"200% 200%", animation:"gradientShift 3s ease infinite",
+           boxShadow:`0 12px 32px ${C.primaryDim}, 0 0 40px ${C.primaryDim}`, display:"flex", alignItems:"center", justifyContent:"center",
+           transition:"all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+         }} onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.1) rotate(90deg)";e.currentTarget.style.boxShadow=`0 16px 48px ${C.primaryDim}, 0 0 60px ${C.primaryDim}`;}} onMouseLeave={e=>{e.currentTarget.style.transform="scale(1) rotate(0)";e.currentTarget.style.boxShadow=`0 12px 32px ${C.primaryDim}, 0 0 40px ${C.primaryDim}`;}}>
+            <Ico n="plus" sz={28} c="#000"/>
+         </button>
+         <div style={{position:"absolute", inset:-10, background:C.primary, filter:"blur(30px)", opacity:0.15, zIndex:-1, borderRadius:"50%", animation:"pulseGlow 3s infinite"}}/>
+      </div>
+
+      <style>{`
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.15; transform: scale(1); }
+          50% { opacity: 0.25; transform: scale(1.1); }
+        }
+      `}</style>
 
       {/* ── ADD TRANSACTION MODAL ─────────────────────────────────────────── */}
       <Modal open={addTx} onClose={()=>setAddTx(false)} title="Add Transaction">
@@ -2020,14 +2599,64 @@ export default function App() {
         </div>
       </Modal>
 
-      {/* ── NEW CATEGORY ──────────────────────────────────────────────────── */}
-      <Modal open={showNewCat} onClose={()=>setShowNewCat(false)} title="New Category">
-        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <div><FLabel>Name</FLabel><FInput value={newCat.name} onChange={e=>setNewCat({...newCat,name:e.target.value})} placeholder="e.g. Rent, Gym…"/></div>
+      {/* ── NEW/EDIT CATEGORY ────────────────────────────────────────────── */}
+      <Modal open={showNewCat} onClose={()=>{setShowNewCat(false);setEditingCat(null);}} title={editingCat?"Edit Category":"New Category"}>
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          
+          {/* Emoji & Preview */}
+          <div style={{background:C.input, padding:20, borderRadius:24, border:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:16, justifyContent:"center", marginBottom:8}}>
+             <div style={{width:64, height:64, borderRadius:20, background:newCat.color+"22", border:`1px solid ${newCat.color}50`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:32}}>
+               {newCat.emoji || "💰"}
+             </div>
+             <div style={{flex:1}}>
+                <div style={{color:C.text, fontSize:20, fontWeight:900, letterSpacing:"-.02em"}}>{newCat.name || "Category Name"}</div>
+                <div style={{color:C.sub, fontSize:12, fontWeight:700, textTransform:"uppercase"}}>{newCat.type}</div>
+             </div>
+          </div>
+
+          <div><FLabel>Name</FLabel><FInput value={newCat.name} onChange={e=>setNewCat({...newCat,name:e.target.value})} placeholder="e.g. Shopping, Rent…"/></div>
           <CustomSelect label="Type" value={newCat.type} options={["Expense","Income","Investment"].map(o=>({id:o, name:o}))} onChange={v=>setNewCat({...newCat,type:v})}/>
-          <div><FLabel>Monthly Budget (optional)</FLabel><FInput value={newCat.budget} onChange={e=>setNewCat({...newCat,budget:e.target.value})} placeholder="e.g. 5000" type="number"/></div>
-          <div><FLabel>Color</FLabel><input type="color" value={newCat.color} onChange={e=>setNewCat({...newCat,color:e.target.value})} style={{width:50,height:38,border:"none",background:"none",cursor:"pointer",padding:0}}/></div>
-          <Btn full onClick={()=>{if(!newCat.name.trim())return;setCats(p=>[...p,{id:uid(),name:newCat.name,type:newCat.type,color:newCat.color,budget:newCat.budget?parseFloat(newCat.budget):0}]);setNewCat({name:"",type:"Expense",color:"#00dba8",budget:""});setShowNewCat(false);notify("✓ Category added");}}>Add</Btn>
+          
+          <div>
+            <FLabel>Emoji Icon</FLabel>
+            <div style={{display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:8, maxHeight:120, overflowY:"auto", padding:4, background:C.muted, borderRadius:12}}>
+              {["💰","💳","🏦","🍔","🛒","🏠","🚗","🎬","💊","🎒","📱","💡","🍕","⛽","🛍","🎁","✈","⚽","🎸","🐶","👔","👗","💍","💄","🍺","☕","🍼","🍎","🥕","🍿"].map(em => (
+                <button key={em} onClick={()=>setNewCat({...newCat, emoji:em})} style={{fontSize:22, background:newCat.emoji===em?C.primaryDim:"transparent", border:newCat.emoji===em?`1px solid ${C.primary}`:"1px solid transparent", borderRadius:8, cursor:"pointer", padding:4, transition:"all .2s"}}>
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <FLabel>Theme Color</FLabel>
+            <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+              {["#ef4444","#f97316","#f59e0b","#eab308","#84cc16","#10b981","#06b6d4","#3b82f6","#6366f1","#8b5cf6","#a855f7","#d946ef","#ec4899","#f43f5e","#64748b"].map(c => (
+                <button key={c} onClick={()=>setNewCat(p=>({...p, color:c}))} style={{width:28, height:28, borderRadius:8, background:c, border:`3px solid ${newCat.color===c?"#fff":"transparent"}`, cursor:"pointer", transition:"transform .2s"}} />
+              ))}
+              <input type="color" value={newCat.color} onChange={e=>setNewCat({...newCat,color:e.target.value})} style={{width:28,height:28,border:"none",background:"none",cursor:"pointer",padding:0, borderRadius:8}}/>
+            </div>
+          </div>
+
+          <div><FLabel>Monthly Budget (Optional)</FLabel><FInput value={newCat.budget} onChange={e=>setNewCat({...newCat,budget:e.target.value})} placeholder="e.g. 5000" type="number"/></div>
+          
+          <div style={{display:"flex", gap:10, marginTop:8}}>
+            <Btn v="ghost" full onClick={()=>{setShowNewCat(false);setEditingCat(null);}}>Cancel</Btn>
+            <Btn full onClick={()=>{
+              if(!newCat.name.trim())return;
+              const savedCat = {...newCat, budget:newCat.budget?parseFloat(newCat.budget):0};
+              if(editingCat) {
+                setCats(prev => prev.map(c => c.id === editingCat.id ? { ...c, ...savedCat } : c));
+                notify("✓ Category updated");
+              } else {
+                setCats(p=>[...p,{id:uid(),...savedCat}]);
+                notify("✓ Category added");
+              }
+              setNewCat({name:"",type:"Expense",color:"#00dba8",budget:"",emoji:"💰"});
+              setShowNewCat(false);
+              setEditingCat(null);
+            }}>{editingCat?"Save Changes":"Create Category"}</Btn>
+          </div>
         </div>
       </Modal>
 
@@ -2081,6 +2710,143 @@ export default function App() {
           <Btn full onClick={()=>{if(!newAcc.name.trim())return;setAccs(p=>[...p,{id:uid(),name:newAcc.name,type:newAcc.type,initialBalance:newAcc.initialBalance?parseFloat(newAcc.initialBalance):0}]);setNewAcc({name:"",type:"Bank",initialBalance:""});setShowNewAcc(false);notify("✓ Account added");}}>Add Account</Btn>
         </div>
       </Modal>
+
+      {/* ── DUPLICATE DETECTION ────────────────────────────────────────────── */}
+      <Modal open={showDuplicates} onClose={()=>setShowDuplicates(false)} title="Potential Duplicates">
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{color:C.sub, fontSize:13, lineHeight:1.5}}>
+             We found transactions with identical **dates, amounts, and descriptions**. Review them below to keep your data clean.
+          </div>
+          
+          <div style={{maxHeight:500, overflowY:"auto", display:"flex", flexDirection:"column", gap:20, paddingRight:4}}>
+            {(() => {
+              const groups = {};
+              transactions.forEach(t => {
+                const key = `${t.date}_${t.amount}_${t.description.toLowerCase().trim()}`;
+                if(!groups[key]) groups[key] = [];
+                groups[key].push(t);
+              });
+              const dupeGroups = Object.values(groups).filter(g => g.length > 1);
+
+              if(dupeGroups.length === 0) return (
+                <div style={{textAlign:"center", padding:60, color:C.sub, display:"flex", flexDirection:"column", alignItems:"center", gap:16}}>
+                  <div style={{fontSize:40}}>✨</div>
+                  <div>No duplicates found. Your ledger is clean!</div>
+                </div>
+              );
+
+              return dupeGroups.map((group, idx) => (
+                <div key={idx} style={{background:C.input, borderRadius:24, padding:16, border:`1px solid ${C.border}`}}>
+                   <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${C.border}40`}}>
+                      <div style={{color:C.text, fontWeight:800, fontSize:14}}>{group[0].description}</div>
+                      <div style={{color:C.expense, fontWeight:900, fontSize:14}}>{fmtAmt(group[0].amount)}</div>
+                   </div>
+                   <div style={{display:"flex", flexDirection:"column", gap:8}}>
+                      {group.map(t => (
+                        <div key={t.id} style={{display:"flex", alignItems:"center", gap:10, background:C.card, padding:10, borderRadius:14, border:`1px solid ${C.border}`}}>
+                           <div style={{flex:1}}>
+                              <div style={{color:C.text, fontSize:12, fontWeight:600}}>{new Date(t.date).toLocaleDateString()}</div>
+                              <div style={{color:C.sub, fontSize:10}}>{accounts.find(a=>a.id===t.accountId)?.name || "No Account"}</div>
+                           </div>
+                           <button onClick={() => {
+                             if(window.confirm("Delete this duplicate?")) {
+                               setTransactions(prev => prev.filter(x => x.id !== t.id));
+                               notify("✓ Duplicate deleted");
+                             }
+                           }} style={{background:C.expense+"20", border:"none", borderRadius:8, padding:8, color:C.expense, cursor:"pointer", transition:"transform .2s"}} onMouseEnter={e=>e.currentTarget.style.transform="scale(1.1)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+                              <Ico n="trash" sz={14}/>
+                           </button>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              ));
+            })()}
+          </div>
+          <Btn full onClick={()=>setShowDuplicates(false)}>Done</Btn>
+        </div>
+      </Modal>
+
+      {/* BUDGET ENTRY MODAL (Phase 4) */}
+      {editingBudget && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(12px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div className="modal-enter" style={{background:C.card,width:"100%",maxWidth:360,borderRadius:32,border:`1px solid ${C.border}`,padding:24,display:"flex",flexDirection:"column",gap:24,boxShadow:C.cardGlow}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <h2 style={{margin:0,fontSize:18,fontWeight:900,color:C.text}}>Set Budget</h2>
+              <button onClick={()=>setEditingBudget(null)} style={{background:"none",border:"none",color:C.sub}}><Ico n="close" sz={20}/></button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <label style={{color:C.sub,fontSize:10,fontWeight:800,textTransform:"uppercase"}}>Category</label>
+              <div style={{color:C.text,fontSize:16,fontWeight:700,padding:"12px 16px",background:C.input,borderRadius:16,border:`1px solid ${C.border}`}}>
+                {categories.find(c=>c.id===editingBudget.categoryId)?.name}
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <label style={{color:C.sub,fontSize:10,fontWeight:800,textTransform:"uppercase"}}>Monthly Limit</label>
+              <div style={{position:"relative"}}>
+                <span style={{position:"absolute",left:16,top:"50%",transform:"translateY(-50%)",color:C.sub,fontWeight:800}}>₹</span>
+                <input type="number" value={editingBudget.amount || ""} onChange={e=>setEditingBudget({...editingBudget, amount:parseFloat(e.target.value)||0})} placeholder="0.00" autoFocus style={{width:"100%",background:C.input,border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 16px 14px 32px",color:C.text,fontSize:18,fontWeight:900,outline:"none",fontFamily:"'JetBrains Mono',monospace"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <Btn full onClick={() => {
+                setBudgets(prev => {
+                  const existing = prev.filter(b => b.categoryId !== editingBudget.categoryId);
+                  return editingBudget.amount > 0 ? [...existing, editingBudget] : existing;
+                });
+                setEditingBudget(null);
+                notify("✓ Budget Updated");
+              }}>Save Budget</Btn>
+              {budgets.find(b=>b.categoryId===editingBudget.categoryId) && (
+                <button onClick={()=>{
+                  setBudgets(prev => prev.filter(b => b.categoryId !== editingBudget.categoryId));
+                  setEditingBudget(null);
+                  notify("✓ Budget Removed");
+                }} style={{background:"none",border:"none",color:C.expense,fontSize:12,fontWeight:700,cursor:"pointer"}}>Remove Budget</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RULE ENTRY MODAL (Phase 4) */}
+      {editingRule && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(12px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div className="modal-enter" style={{background:C.card,width:"100%",maxWidth:400,borderRadius:32,border:`1px solid ${C.border}`,padding:24,display:"flex",flexDirection:"column",gap:24,boxShadow:C.cardGlow}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <h2 style={{margin:0,fontSize:18,fontWeight:900,color:C.text}}>{editingRule.id ? "Edit Rule" : "New Rule"}</h2>
+              <button onClick={()=>setEditingRule(null)} style={{background:"none",border:"none",color:C.sub}}><Ico n="close" sz={20}/></button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+               <label style={{color:C.sub,fontSize:10,fontWeight:800,textTransform:"uppercase"}}>If description contains...</label>
+               <input value={editingRule.pattern} onChange={e=>setEditingRule({...editingRule, pattern:e.target.value})} placeholder="e.g. Uber, Netflix, Zomato..." style={{width:"100%",background:C.input,border:`1px solid ${C.border}`,borderRadius:16,padding:16,color:C.text,fontSize:16,fontWeight:600,outline:"none"}}/>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+               <label style={{color:C.sub,fontSize:10,fontWeight:800,textTransform:"uppercase"}}>Set Category to...</label>
+               <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
+                  {categories.filter(c=>c.id!=="income").map(cat => (
+                    <button key={cat.id} onClick={()=>setEditingRule({...editingRule, categoryId:cat.id})} style={{
+                      padding:"8px 12px", borderRadius:12, fontSize:12, fontWeight:700, cursor:"pointer",
+                      background:editingRule.categoryId===cat.id ? cat.color+"20" : C.input,
+                      border:`1px solid ${editingRule.categoryId===cat.id ? cat.color : C.border}`,
+                      color:editingRule.categoryId===cat.id ? cat.color : C.sub,
+                      transition:"all .2s"
+                    }}>{cat.emoji} {cat.name}</button>
+                  ))}
+               </div>
+            </div>
+            <Btn full disabled={!editingRule.pattern} onClick={() => {
+               setRules(prev => {
+                 const id = editingRule.id || uid();
+                 const existing = prev.filter(r => r.id !== id);
+                 return [...existing, { ...editingRule, id }];
+               });
+               setEditingRule(null);
+               notify("✓ Rule Saved");
+            }}>Save Rule</Btn>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
