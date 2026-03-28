@@ -30,7 +30,7 @@ export const TxRow = ({t, categories, tags, accounts, onClick, selected, onSelec
              <div style={{width:10,height:10,borderRadius:"50%",background:cat?.color||C.sub}}/>
           </div>
           <div style={{display:"flex",flexDirection:"column"}}>
-            <span style={{color:C.text,fontSize:14,fontWeight:700}}>{cat?.name||"Others"}</span>
+            <span style={{color:C.text,fontSize:14,fontWeight:700}}>{t.description}</span>
             <span style={{color:C.sub,fontSize:11,fontWeight:500}}>{fmtDate(t.date)}</span>
           </div>
         </div>
@@ -42,8 +42,9 @@ export const TxRow = ({t, categories, tags, accounts, onClick, selected, onSelec
         </div>
       </div>
 
-      <div style={{color:C.text,fontSize:14,fontWeight:500,lineHeight:1.4, opacity:0.9}}>
-        {t.description}
+      <div style={{color:C.text,fontSize:13,fontWeight:700,lineHeight:1.4, opacity:0.7, display:"flex", alignItems:"center", gap:6}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:cat?.color||C.sub}}/>
+        {cat?.name||"Others"}
       </div>
 
       {(txTags.length>0 || t.accountId) && (

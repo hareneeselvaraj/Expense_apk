@@ -44,6 +44,7 @@ const QuickAdd = ({ categories, onSave, theme }) => {
 
 export default function Dashboard({ user, transactions, categories, tags, accounts, stats, netWorth, getDayFlow, viewDate, setViewDate, onEditTx, onAddTx, onSave, theme }) {
   const C = theme;
+  const dateRef = React.useRef(null);
   
   return (
     <div className="page-enter" style={{padding:"20px 20px 100px 20px",display:"flex",flexDirection:"column",gap:24}}>
@@ -54,7 +55,26 @@ export default function Dashboard({ user, transactions, categories, tags, accoun
           <h1 style={{fontSize:24,fontWeight:900,color:C.text,margin:0,letterSpacing:"-.03em"}}>Hello, {user?.name?.split(" ")[0]||"User"}!</h1>
           <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
             <button onClick={()=>setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1))} style={{background:C.input,borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:"50%",padding:4,color:C.sub,cursor:"pointer"}}><Ico n="chevronLeft" sz={14}/></button>
-            <span style={{fontSize:13,color:C.sub,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em"}}>{viewDate.toLocaleString("en",{month:"long",year:"numeric"})}</span>
+            <span 
+              onClick={() => {
+                try { dateRef.current?.showPicker(); } catch (e) {}
+              }}
+              style={{fontSize:13,color:C.sub,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em", position:"relative", cursor:"pointer"}}
+            >
+              {viewDate.toLocaleString("en",{month:"long",year:"numeric"})}
+              <input 
+                ref={dateRef}
+                type="date"
+                value={viewDate.toISOString().split("T")[0]}
+                onChange={(e) => {
+                  if (e.target.value) setViewDate(new Date(e.target.value));
+                }}
+                style={{
+                  position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+                  opacity: 0, cursor: "pointer"
+                }}
+              />
+            </span>
             <button onClick={()=>setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1))} style={{background:C.input,borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:"50%",padding:4,color:C.sub,cursor:"pointer"}}><Ico n="chevronRight" sz={14}/></button>
           </div>
         </div>

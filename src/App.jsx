@@ -40,6 +40,7 @@ import { CatForm } from "./components/forms/CatForm.jsx";
 import { TagForm } from "./components/forms/TagForm.jsx";
 import { BudgetForm } from "./components/forms/BudgetForm.jsx";
 import { AccForm } from "./components/forms/AccForm.jsx";
+import { UploadModal } from "./components/forms/UploadModal.jsx";
 
 const globalStyles = `
   @keyframes pulse-neon {
@@ -89,6 +90,8 @@ export default function App() {
   const [reportsMode, setReportsMode] = useState("category");
   const [reportsSubTab, setReportsSubTab] = useState("breakdown");
   const [reportDate, setReportDate] = useState(new Date());
+  const [orgDate, setOrgDate] = useState(new Date());
+  const [orgPeriodTab, setOrgPeriodTab] = useState("month");
 
   const [syncStatus, setSyncStatus] = useState("synced");
   const [showBackup, setShowBackup] = useState(false);
@@ -98,8 +101,10 @@ export default function App() {
   const [editTag, setEditTag] = useState(null);
   const [editBudget, setEditBudget] = useState(null);
   const [addAcc, setAddAcc] = useState(false);
+  const [editAcc, setEditAcc] = useState(null);
+  const [showUpload, setShowUpload] = useState(false);
 
-  const isModalOpen = !!(addTx || editTx || showBackup || showFilters || addCat || editCat || addTag || editTag || editBudget || addAcc);
+  const isModalOpen = !!(addTx || editTx || showBackup || showFilters || addCat || editCat || addTag || editTag || editBudget || addAcc || editAcc || showUpload);
   const driveTokenRef = useRef(null);
   const [driveFiles, setDriveFiles] = useState([]);
   const [driveStep, setDriveStep] = useState(null);
@@ -112,7 +117,7 @@ export default function App() {
     const load = async () => {
       const d = await dbGet("data");
       if (d) {
-        if (d.transactions) setTransactions(d.transactions);
+        if (d.transactions) setTransactions(d.transactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0 })));
         if (d.categories) setCategories(d.categories);
         if (d.tags) setTags(d.tags);
         if (d.accounts) setAccounts(d.accounts);
@@ -197,21 +202,22 @@ export default function App() {
     setTransactions(prev => {
       let next = [...prev];
       txs.forEach(t => {
-        const idx = next.findIndex(x => x.id === t.id);
-        if (idx > -1) next[idx] = t;
-        else next = [t, ...next];
+        const sanitized = { ...t, amount: parseFloat(t.amount) || 0 };
+        const idx = next.findIndex(x => x.id === sanitized.id);
+        if (idx > -1) next[idx] = sanitized;
+        else next = [sanitized, ...next];
       });
       return next;
     });
     setAddTx(false);
     setEditTx(null);
-    notify("✓ Saved");
+    notify("Transaction saved successfully");
   };
 
   const handleDeleteTx = (id) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
     setEditTx(null);
-    notify("✓ Deleted");
+    notify("Transaction deleted successfully", "error");
   };
 
   const toggleTheme = () => {
@@ -225,7 +231,7 @@ export default function App() {
     setDriveStep("saving");
     try {
       await driveService.saveToDrive(CLIENT_ID, driveTokenRef, { transactions, categories, tags, accounts, budgets, rules });
-      notify("✓ Saved to Google Drive");
+    notify("Backup synced successfully");
     } catch (err) {
       notify(err.message, "error");
     }
@@ -254,7 +260,7 @@ export default function App() {
       if (data.accounts) setAccounts(data.accounts);
       if (data.budgets) setBudgets(data.budgets);
       if (data.rules) setRules(data.rules);
-      notify("✓ Data Restored Successfully");
+      notify("Data restored successfully");
       setShowBackup(false);
     } catch (err) {
       notify(err.message, "error");
@@ -338,7 +344,7 @@ export default function App() {
           transactions, filteredTx, categories, tags, accounts, searchQ, setSearchQ, filters, setFilters,
           hasFilter: !!(filters.from || filters.to || filters.cat || filters.acc || filters.type || filters.cd || filters.tags.length),
           onShowFilters: () => setShowFilters(true),
-          onShowUpload: () => { }, // Will add later
+          onShowUpload: () => setShowUpload(true),
           onExportCSV: () => exportCSV(filteredTx, categories, tags, accounts),
           onExportPDF: () => exportTransactionsPDF(filteredTx, categories, accounts, (m) => notify(m)),
           onEditTx: setEditTx,
@@ -346,36 +352,33 @@ export default function App() {
           onDeleteBulk: () => {
             setTransactions(p => p.filter(t => !selectedTxIds.includes(t.id)));
             setSelectedTxIds([]);
-            notify("✓ Bulk Deleted");
+            notify("Items deleted successfully", "error");
           },
           onAdd: () => setAddTx(true),
           theme: C
         }} />}
         {page === "reports" && <ReportsPage {...{
           reportTab, setReportTab, reportsMode, setReportsMode, reportsSubTab, setReportsSubTab, reportDate, setReportDate,
-          filtered: filteredTx, // Use filtered for reports too
-          stats: getSummary(filteredTx),
-          savingsRate: getSummary(filteredTx).inc > 0 ? Math.round(((getSummary(filteredTx).inc - getSummary(filteredTx).exp) / getSummary(filteredTx).inc) * 100) : 0,
-          aggrData: Object.entries(filteredTx.reduce((acc, t) => {
-            const k = reportsMode === "category" ? (categories.find(c => c.id === t.category)?.name || "Other") : (t.tags?.[0] ? (tags.find(tg => tg.id === t.tags[0])?.name || "Tag") : "Untagged");
-            acc[k] = (acc[k] || 0) + t.amount;
-            return acc;
-          }, {})).sort((a, b) => b[1] - a[1]),
+          filtered: filteredTx,
+          categories,
+          tags,
           theme: C
         }} />}
         {page === "organize" && <OrganizePage {...{
-          organizeTab, setOrganizeTab, categories, transactions, tags, budgets, rules, DEF_CATS,
+          organizeTab, setOrganizeTab, 
+          orgDate, setOrgDate, orgPeriodTab, setOrgPeriodTab,
+          categories, transactions, tags, budgets, rules, DEF_CATS,
           onAddCat: () => setAddCat(true),
           onEditCat: (c) => setEditCat(c),
           onDeleteCat: (id) => {
             setCategories(p => p.filter(c => c.id !== id));
-            notify("✓ Category Deleted");
+            notify("Category deleted successfully", "error");
           },
           onAddTag: () => setAddTag(true),
           onEditTag: (t) => setEditTag(t),
           onDeleteTag: (id) => {
             setTags(p => p.filter(x => x.id !== id));
-            notify("✓ Tag Deleted");
+            notify("Tag deleted successfully", "error");
           },
           onAddBudget: (type) => setEditBudget({ type, isNew: true }),
           onEditBudget: (id, b, type) => {
@@ -384,7 +387,7 @@ export default function App() {
           },
           onDeleteBudget: (budgetId) => {
             setBudgets(p => p.filter(b => b.id !== budgetId));
-            notify("✓ Budget Removed");
+            notify("Budget deleted successfully", "error");
           },
           onAddRule: (r) => setRules(p => [r, ...p]),
           onEditRule: (r) => setRules(p => p.map(x => x.id === r.id ? r : x)),
@@ -395,11 +398,15 @@ export default function App() {
         {page === "vault" && <VaultPage {...{
           accounts, transactions,
           onAddAcc: () => setAddAcc(true),
+          onEditAcc: (acc) => setEditAcc(acc),
           onDeleteAcc: (id) => {
-            if (window.confirm("Delete account?")) {
-              setAccounts(p => p.filter(x => x.id !== id));
-              notify("Account Deleted");
-            }
+            console.log("Deleting account:", id);
+            setAccounts(prev => {
+              const next = prev.filter(x => x.id !== id);
+              console.log("New accounts list length:", next.length);
+              return next;
+            });
+            notify("Account deleted successfully", "error");
           },
           theme: C
         }} />}
@@ -487,7 +494,7 @@ export default function App() {
             });
             setAddCat(false);
             setEditCat(null);
-            notify("✓ Category Saved");
+            notify("Category created successfully");
           }}
         />
       </Modal>
@@ -505,7 +512,7 @@ export default function App() {
             });
             setAddTag(false);
             setEditTag(null);
-            notify("✓ Tag Saved");
+            notify("Tag created successfully");
           }}
         />
       </Modal>
@@ -535,23 +542,39 @@ export default function App() {
                 return [...p, { id: uid(), [idKey]: targetId, amount: amt }];
               });
               setEditBudget(null);
-              notify("✓ Budget Saved");
+              notify("Budget created successfully");
             }}
           />
         )}
       </Modal>
 
-      <Modal open={addAcc} title="New Vault Account" onClose={() => setAddAcc(false)} theme={C}>
+      <Modal open={!!(addAcc || editAcc)} title={editAcc ? "Edit Account" : "New Vault Account"} onClose={() => { setAddAcc(false); setEditAcc(null); }} theme={C}>
         <AccForm
+          editAcc={editAcc}
           theme={C}
-          onCancel={() => setAddAcc(false)}
+          onCancel={() => { setAddAcc(false); setEditAcc(null); }}
           onSave={(acc) => {
-            setAccounts(p => [acc, ...p]);
+            setAccounts(p => {
+              const idx = p.findIndex(x => x.id === acc.id);
+              if (idx > -1) return p.map(x => x.id === acc.id ? acc : x);
+              return [acc, ...p];
+            });
             setAddAcc(false);
-            notify("✓ Account Created");
+            setEditAcc(null);
+            notify(editAcc ? "✓ Account Updated" : "✓ Account Created");
           }}
         />
       </Modal>
+
+      <UploadModal 
+        open={showUpload} 
+        onClose={() => setShowUpload(false)} 
+        onImport={(txns) => {
+          handleSaveTx(txns);
+        }} 
+        theme={C} 
+        categories={categories}
+      />
 
       <Toast toast={toast} theme={C} />
 

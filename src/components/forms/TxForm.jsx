@@ -168,7 +168,7 @@ export const TxForm = ({init, categories, tags, accounts, onSave, onDelete, onCl
             }));
             onSave(splitTxs);
           } else {
-            onSave(tx);
+            onSave(init?.id ? { ...tx, amount: parseFloat(tx.amount) || 0 } : { ...tx, id: uid(), amount: parseFloat(tx.amount) || 0 });
           }
         }}>{init?.id ? "Save Changes" : isSplitting ? "Save Splits" : "Add Transaction"}</Btn>
       </div>

@@ -3,11 +3,11 @@ import { Btn } from "../ui/Btn.jsx";
 import { Ico } from "../ui/Ico.jsx";
 import { uid } from "../../utils/id.js";
 
-export function AccForm({ onSave, onCancel, theme }) {
+export function AccForm({ editAcc, onSave, onCancel, theme }) {
   const C = theme;
-  const [name, setName] = useState("");
-  const [type, setType] = useState("Bank");
-  const [balance, setBalance] = useState("");
+  const [name, setName] = useState(editAcc?.name || "");
+  const [type, setType] = useState(editAcc?.type || "Bank");
+  const [balance, setBalance] = useState(editAcc?.initialBalance?.toString() || "");
 
   const types = [
     { id: "Bank", icon: "bank" },
@@ -19,10 +19,10 @@ export function AccForm({ onSave, onCancel, theme }) {
     e.preventDefault();
     if (!name.trim()) return;
     onSave({
-      id: uid(),
+      id: editAcc?.id || uid(),
       name: name.trim(),
       type,
-      balance: parseFloat(balance) || 0
+      initialBalance: parseFloat(balance) || 0
     });
   };
 
@@ -84,7 +84,7 @@ export function AccForm({ onSave, onCancel, theme }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
         <Btn theme={C} v="ghost" full onClick={onCancel}>Cancel</Btn>
-        <Btn theme={C} v="primary" full type="submit">Create Account</Btn>
+        <Btn theme={C} v="primary" full type="submit">{editAcc ? "Save Changes" : "Create Account"}</Btn>
       </div>
     </form>
   );

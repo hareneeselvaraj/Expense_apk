@@ -40,7 +40,7 @@ export default function BudgetsPanel({ categories, tags, budgets, transactions, 
       <div style={{display:"flex", background:C.surface, borderRadius:14, padding:4, border:`1px solid ${C.border}`, width:"100%"}}>
         {["categories", "tags"].map(t => (
           <button key={t} onClick={() => { setSubTab(t); setConfirmId(null); }} style={{
-            flex:1, padding:8, borderRadius:10, border:"none", cursor:"pointer",
+            flex:1, padding:8, borderRadius:10, cursor:"pointer",
             fontSize:10, fontWeight:900, textTransform:"uppercase", letterSpacing:".05em",
             background: subTab === t ? C.primaryDim : "transparent",
             color: subTab === t ? C.primary : C.sub,
@@ -59,12 +59,7 @@ export default function BudgetsPanel({ categories, tags, budgets, transactions, 
         ) : budgetedItems.map(item => {
           const b = item.budget;
           const spent = transactions
-            .filter(t => {
-              const matchesTarget = isCat ? t.category === item.id : (t.tags || []).includes(item.id);
-              const now = new Date();
-              const d = new Date(t.date);
-              return matchesTarget && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            })
+            .filter(t => isCat ? t.category === item.id : (t.tags || []).includes(item.id))
             .reduce((s, t) => s + t.amount, 0);
 
           const pct = b ? Math.min((spent / b.amount) * 100, 100) : 0;
