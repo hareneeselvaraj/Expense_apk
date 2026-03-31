@@ -37,7 +37,7 @@ export const CATEGORY_RULES = [
   { name: "Entertainment", color: "#a855f7", type: "Expense",    keywords: ["movie", "cinema", "pvr", "inox", "bookmyshow", "gaming", "game", "steam", "playstation", "xbox", "concert", "event", "ticket", "amusement", "theme park", "park", "club", "pub"] },
   { name: "Fitness",       color: "#84cc16", type: "Expense",    keywords: ["gym", "fitness", "cult", "curefit", "yoga", "sports", "swim", "membership", "protein", "supplement"] },
   { name: "Personal Care", color: "#e879f9", type: "Expense",    keywords: ["salon", "spa", "haircut", "beauty", "parlour", "parlor", "grooming", "urban company", "urbanclap", "cosmetic", "skincare"] },
-  { name: "Transfers",     color: "#94a3b8", type: "Expense",    keywords: ["transfer", "trf/", "neft/", "imps/", "rtgs/", "upi/p2p", "self trf", "own acc", "own account"] },
+  { name: "Transfers",     color: "#94a3b8", type: "Expense",    keywords: ["transfer", "trf/", "self trf", "own acc", "own account", "upi/p2p"] },
   { name: "ATM",           color: "#78716c", type: "Expense",    keywords: ["atm", "cash withdrawal", "cash wd", "atm wd", "atm/cash", "nfs/", "cash"] },
   { name: "Charity",       color: "#fbbf24", type: "Expense",    keywords: ["donation", "charity", "ngo", "trust", "temple", "church", "mosque", "gurudwara", "orphanage", "relief fund", "pm cares", "ketto", "milaap", "give india"] },
   { name: "Government",    color: "#64748b", type: "Expense",    keywords: ["tax", "gst", "income tax", "tds", "challan", "stamp duty", "registration", "passport", "government", "municipal", "mcd", "property tax"] },
@@ -71,6 +71,11 @@ export function categorizeTransaction(remarks, amount = 0, isCredit = false) {
     for (const keyword of rule.keywords) {
       // Check both the combined tokens AND the raw remarks for matches
       if (combined.includes(keyword) || remarksLower.includes(keyword)) {
+        // If this is a CREDIT transaction but the matched rule is an Expense category,
+        // treat it as a Refund (Income) instead of the matched expense category.
+        if (isCredit && rule.type === "Expense") {
+          return { name: "Refund", color: "#06b6d4", type: "Income" };
+        }
         return { name: rule.name, color: rule.color, type: rule.type };
       }
     }
@@ -221,6 +226,15 @@ export function processTransactions(rows, columnMap) {
         if (d) dateStr = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
       }
 
+      // Determine txType: credits are always Income (unless category is Investment),
+      // debits use the category type
+      let txType;
+      if (isCredit) {
+        txType = category.type === "Investment" ? "Investment" : "Income";
+      } else {
+        txType = category.type === "Income" ? "Income" : category.type === "Investment" ? "Investment" : "Expense";
+      }
+
       return {
         _idx: idx,
         date: dateStr,
@@ -228,7 +242,7 @@ export function processTransactions(rows, columnMap) {
         description: smartDesc,
         amount,
         creditDebit: isCredit ? "Credit" : "Debit",
-        txType: category.type === "Income" ? "Income" : category.type === "Investment" ? "Investment" : "Expense",
+        txType,
         category,
         balance: row[columnMap.balance] || "",
       };

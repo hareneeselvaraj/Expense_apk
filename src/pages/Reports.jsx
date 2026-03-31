@@ -36,7 +36,8 @@ export default function ReportsPage({
 
   // 3. Aggregate for Breakdown view
   const aggrData = React.useMemo(() => {
-    const map = reportTx.reduce((acc, t) => {
+    const expenseTx = reportTx.filter(t => t.txType === "Expense");
+    const map = expenseTx.reduce((acc, t) => {
       const k = reportsMode === "category" 
         ? (categories.find(c => c.id === t.category)?.name || "Other") 
         : (t.tags?.[0] ? (tags.find(tg => tg.id === t.tags[0])?.name || "Tag") : "Untagged");
@@ -167,7 +168,7 @@ export default function ReportsPage({
               <div style={{color:stats.net>=0?C.income:C.expense,fontSize:28,fontWeight:900,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"-.04em", textShadow:`0 0 20px ${stats.net>=0?C.income:C.expense}44`}}>
                 {stats.net>=0?"+":"−"}{fmtAmt(Math.abs(stats.net))}
               </div>
-              <div style={{color:C.sub,fontSize:10,marginTop:6,fontWeight:700, textTransform:"uppercase"}}>{filtered.length} TXNS {stats.inc > 0 ? `• ${savingsRate}% SAVED` : ""}</div>
+              <div style={{color:C.sub,fontSize:10,marginTop:6,fontWeight:700, textTransform:"uppercase"}}>{reportTx.length} TXNS {stats.inc > 0 ? `• ${savingsRate}% SAVED` : ""}</div>
             </div>
 
             {/* INC */}

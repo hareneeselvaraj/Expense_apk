@@ -41,6 +41,7 @@ import { TagForm } from "./components/forms/TagForm.jsx";
 import { BudgetForm } from "./components/forms/BudgetForm.jsx";
 import { AccForm } from "./components/forms/AccForm.jsx";
 import { UploadModal } from "./components/forms/UploadModal.jsx";
+import { FilterModal } from "./components/forms/FilterModal.jsx";
 
 const globalStyles = `
   @keyframes pulse-neon {
@@ -83,7 +84,7 @@ export default function App() {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [selectedTxIds, setSelectedTxIds] = useState([]);
-  const [filters, setFilters] = useState({ from: "", to: "", cat: "", tags: [], acc: "", type: "", cd: "" });
+  const [filters, setFilters] = useState({ from: "", to: "", cats: [], tags: [], acc: "", type: "", cd: "" });
 
   const [organizeTab, setOrganizeTab] = useState("categories");
   const [reportTab, setReportTab] = useState("month");
@@ -230,8 +231,11 @@ export default function App() {
   const saveToDrive = async () => {
     setDriveStep("saving");
     try {
-      await driveService.saveToDrive(CLIENT_ID, driveTokenRef, { transactions, categories, tags, accounts, budgets, rules });
-    notify("Backup synced successfully");
+      const file = await driveService.saveToDrive(CLIENT_ID, driveTokenRef, { transactions, categories, tags, accounts, budgets, rules });
+      if (file && file.modifiedTime) {
+        localStorage.setItem("expense_last_sync", new Date(file.modifiedTime).getTime().toString());
+      }
+      notify("Backup synced successfully");
     } catch (err) {
       notify(err.message, "error");
     }
@@ -250,22 +254,64 @@ export default function App() {
     }
   };
 
-  const restoreFromDrive = async (fileId) => {
+  const restoreFromDrive = async (file) => {
     setDriveStep("restoring");
     try {
-      const data = await driveService.restoreFromDrive(CLIENT_ID, driveTokenRef, fileId);
+      const data = await driveService.restoreFromDrive(CLIENT_ID, driveTokenRef, file.id);
       if (data.transactions) setTransactions(data.transactions);
       if (data.categories) setCategories(data.categories);
       if (data.tags) setTags(data.tags);
       if (data.accounts) setAccounts(data.accounts);
       if (data.budgets) setBudgets(data.budgets);
       if (data.rules) setRules(data.rules);
+      if (file.modifiedTime) localStorage.setItem("expense_last_sync", new Date(file.modifiedTime).getTime().toString());
       notify("Data restored successfully");
       setShowBackup(false);
     } catch (err) {
       notify(err.message, "error");
     }
     setDriveStep(null);
+  };
+
+  const handleSmartSync = async () => {
+    if (!user) { notify("Please sign in first", "error"); return; }
+    setSyncStatus("pending");
+    try {
+      const files = await driveService.listBackups(CLIENT_ID, driveTokenRef);
+      const remoteFile = files[0];
+      const lastSyncedTime = parseInt(localStorage.getItem("expense_last_sync") || "0");
+      
+      let shouldPull = false;
+      if (remoteFile) {
+        const remoteTime = new Date(remoteFile.modifiedTime).getTime();
+        // Strict timestamp check without local clock skew
+        if (remoteTime > lastSyncedTime) {
+           shouldPull = true;
+        }
+      }
+
+      if (shouldPull) {
+        const data = await driveService.restoreFromDrive(CLIENT_ID, driveTokenRef, remoteFile.id);
+        if (data.transactions) setTransactions(data.transactions);
+        if (data.categories) setCategories(data.categories);
+        if (data.tags) setTags(data.tags);
+        if (data.accounts) setAccounts(data.accounts);
+        if (data.budgets) setBudgets(data.budgets);
+        if (data.rules) setRules(data.rules);
+        localStorage.setItem("expense_last_sync", new Date(remoteFile.modifiedTime).getTime().toString());
+        notify("Synced from Cloud ☁️");
+      } else {
+        const file = await driveService.saveToDrive(CLIENT_ID, driveTokenRef, { transactions, categories, tags, accounts, budgets, rules });
+        if (file && file.modifiedTime) {
+          localStorage.setItem("expense_last_sync", new Date(file.modifiedTime).getTime().toString());
+        }
+        notify("Saved to Cloud ☁️");
+      }
+      setSyncStatus("synced");
+    } catch(err) {
+      notify(err.message, "error");
+      setSyncStatus("error");
+    }
   };
 
   // ── ANALYTICS ─────────────────────────────────────────────────────────────
@@ -293,7 +339,7 @@ export default function App() {
       if (dq && !t.description.toLowerCase().includes(dq)) return false;
       if (filters.from && t.date < filters.from) return false;
       if (filters.to && t.date > filters.to) return false;
-      if (filters.cat && t.category !== filters.cat) return false;
+      if (filters.cats.length && !filters.cats.includes(t.category)) return false;
       if (filters.acc && t.accountId !== filters.acc) return false;
       if (filters.type && t.txType !== filters.type) return false;
       if (filters.cd && t.creditDebit !== filters.cd) return false;
@@ -339,10 +385,10 @@ export default function App() {
       />
 
       <main>
-        {page === "dashboard" && <Dashboard {...{ user, transactions, categories, tags, accounts, stats, netWorth: nw, getDayFlow: (days) => getDayFlow(transactions, days), viewDate, setViewDate, onEditTx: setEditTx, onAddTx: () => setAddTx(true), onSave: handleSaveTx, theme: C }} />}
+        {page === "dashboard" && <Dashboard {...{ user, transactions, categories, tags, accounts, stats, netWorth: nw, getDayFlow: (days) => getDayFlow(transactions, days), viewDate, setViewDate, onEditTx: setEditTx, onAddTx: () => setAddTx(true), onSave: handleSaveTx, onSmartSync: handleSmartSync, isSyncing: syncStatus === "pending", theme: C }} />}
         {page === "transactions" && <TransactionsPage {...{
           transactions, filteredTx, categories, tags, accounts, searchQ, setSearchQ, filters, setFilters,
-          hasFilter: !!(filters.from || filters.to || filters.cat || filters.acc || filters.type || filters.cd || filters.tags.length),
+          hasFilter: !!(filters.from || filters.to || filters.cats.length || filters.acc || filters.type || filters.cd || filters.tags.length),
           onShowFilters: () => setShowFilters(true),
           onShowUpload: () => setShowUpload(true),
           onExportCSV: () => exportCSV(filteredTx, categories, tags, accounts),
@@ -443,7 +489,7 @@ export default function App() {
                   notify("Import Successful");
                 } catch (err) { notify("Invalid file", "error"); }
               };
-              reader.readAsDataURL(file);
+              reader.readAsText(file);
             };
             input.click();
           },
@@ -475,7 +521,7 @@ export default function App() {
           {driveStep === "list" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {driveFiles.map(f => (
-                <div key={f.id} onClick={() => restoreFromDrive(f.id)} style={{ background: C.card, padding: 10, borderRadius: 10, cursor: "pointer" }}>{f.name}</div>
+                <div key={f.id} onClick={() => restoreFromDrive(f)} style={{ background: C.card, padding: 10, borderRadius: 10, cursor: "pointer" }}>{f.name}</div>
               ))}
             </div>
           )}
@@ -576,6 +622,18 @@ export default function App() {
         theme={C} 
         categories={categories}
       />
+
+      <Modal theme={C} open={showFilters} onClose={() => setShowFilters(false)} title="Filter Transactions">
+        <FilterModal 
+          filters={filters} 
+          setFilters={setFilters} 
+          categories={categories} 
+          tags={tags} 
+          accounts={accounts} 
+          onClose={() => setShowFilters(false)} 
+          theme={C} 
+        />
+      </Modal>
 
       <Toast toast={toast} theme={C} />
 

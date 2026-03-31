@@ -35,21 +35,21 @@ export const driveService = {
 
     let url, method;
     if (existingFile) {
-      url = `https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=multipart`;
+      url = `https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=multipart&fields=id,name,modifiedTime`;
       method = "PATCH";
     } else {
-      url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+      url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime";
       method = "POST";
     }
 
     const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body: form });
     if (!res.ok) throw new Error(`Drive API error: ${res.status}`);
-    return true;
+    return await res.json();
   },
 
   listBackups: async (clientId, driveTokenRef) => {
     const token = await driveService.getDriveToken(clientId, driveTokenRef);
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=name contains 'MoneyLens_Backup' and trashed=false&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=10`, {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=name contains 'ExpenseTracker_Backup' and trashed=false&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc&pageSize=10`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();

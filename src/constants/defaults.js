@@ -27,6 +27,7 @@ export const DEF_CATS = [
   {id:"c8",name:"Education",type:"Expense",color:"#3b82f6",emoji:"🎓"},
   {id:"c9",name:"Salary",type:"Income",color:"#10b981",emoji:"💰"},
   {id:"c10",name:"Interest",type:"Income",color:"#34d399",emoji:"📈"},
+  {id:"c14",name:"Refund",type:"Income",color:"#06b6d4",emoji:"💸"},
   {id:"c11",name:"Investment",type:"Investment",color:"#6366f1",emoji:"💎"},
   {id:"c12",name:"Cash",type:"Expense",color:"#64748b",emoji:"💵"},
   {id:"c13",name:"Others",type:"Expense",color:"#94a3b8",emoji:"📦"},

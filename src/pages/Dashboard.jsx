@@ -4,6 +4,7 @@ import { Btn } from "../components/ui/Btn.jsx";
 import { TxRow } from "../components/cards/TxRow.jsx";
 import { fmtAmt, fmtDate, todayISO } from "../utils/format.js";
 import { uid } from "../utils/id.js";
+import { getRecentTx } from "../utils/analytics.js";
 import { BLANK_TX } from "../constants/defaults.js";
 
 const Sparkline = ({ data, color, height = 30 }) => {
@@ -24,7 +25,10 @@ const QuickAdd = ({ categories, onSave, theme }) => {
 
   const submit = () => {
     if(!amt || isNaN(amt)) return;
-    onSave({ ...BLANK_TX, id: uid(), amount: parseFloat(amt), category: cat, date: todayISO() });
+    const selCat = categories.find(c => c.id === cat);
+    const inferredType = selCat?.type || "Expense";
+    const inferredCd = inferredType === "Income" ? "Credit" : "Debit";
+    onSave({ ...BLANK_TX, id: uid(), amount: parseFloat(amt), category: cat, date: todayISO(), txType: inferredType, creditDebit: inferredCd });
     setAmt("");
   };
 
@@ -42,7 +46,7 @@ const QuickAdd = ({ categories, onSave, theme }) => {
   );
 };
 
-export default function Dashboard({ user, transactions, categories, tags, accounts, stats, netWorth, getDayFlow, viewDate, setViewDate, onEditTx, onAddTx, onSave, theme }) {
+export default function Dashboard({ user, transactions, categories, tags, accounts, stats, netWorth, getDayFlow, viewDate, setViewDate, onEditTx, onAddTx, onSave, onSmartSync, isSyncing, theme }) {
   const C = theme;
   const dateRef = React.useRef(null);
   
@@ -78,9 +82,26 @@ export default function Dashboard({ user, transactions, categories, tags, accoun
             <button onClick={()=>setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1))} style={{background:C.input,borderWidth:1,borderStyle:"solid",borderColor:C.border,borderRadius:"50%",padding:4,color:C.sub,cursor:"pointer"}}><Ico n="chevronRight" sz={14}/></button>
           </div>
         </div>
-        {user?.picture && <img src={user.picture} style={{width:44,height:44,borderRadius:14,border:`2px solid ${C.borderLight}`,boxShadow:C.shadow}} alt="Profile"/>}
+        <div style={{display:"flex", alignItems:"center", gap: 12}}>
+          <button 
+             onClick={onSmartSync} 
+             disabled={isSyncing}
+             style={{
+               background: isSyncing ? C.muted : C.primaryDim,
+               border: `1px solid ${isSyncing ? C.border : C.primary + "33"}`,
+               borderRadius: 14, padding: "8px 12px", 
+               color: isSyncing ? C.sub : C.primary,
+               display: "flex", alignItems: "center", gap: 6,
+               cursor: isSyncing ? "wait" : "pointer",
+               fontWeight: 800, fontSize: 13, transition: "all .2s"
+             }}
+          >
+             <Ico n="sync" sz={16} />
+             {isSyncing ? "Syncing..." : "Sync"}
+          </button>
+          {user?.picture && <img src={user.picture} style={{width:44,height:44,borderRadius:14,border:`2px solid ${C.borderLight}`,boxShadow:C.shadow}} alt="Profile"/>}
+        </div>
       </div>
-
 
       {/* Net Worth Hero Card */}
       <div style={{
@@ -169,7 +190,7 @@ export default function Dashboard({ user, transactions, categories, tags, accoun
           <div style={{color:C.text,fontSize:16,fontWeight:800}}>Recent Activity</div>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {transactions.slice(0,5).map(t=>(
+          {getRecentTx(transactions, 5).map(t=>(
             <TxRow key={t.id} t={t} categories={categories} tags={tags} accounts={accounts} onClick={()=>onEditTx(t)} theme={C}/>
           ))}
         </div>

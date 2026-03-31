@@ -24,7 +24,8 @@ export const exportTransactionsPDF = (filteredTx, categories, accounts, notify) 
     // Summary Boxes
     const inc = filteredTx.filter(t=>t.txType==="Income").reduce((s,t)=>s+t.amount,0);
     const exp = filteredTx.filter(t=>t.txType==="Expense").reduce((s,t)=>s+t.amount,0);
-    const net = inc - exp;
+    const inv = filteredTx.filter(t=>t.txType==="Investment").reduce((s,t)=>s+t.amount,0);
+    const net = inc - exp - inv;
 
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(15, 45, 58, 22, 3, 3, "F");

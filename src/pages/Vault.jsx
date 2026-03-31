@@ -31,7 +31,7 @@ export default function VaultPage({ accounts, transactions, onAddAcc, onEditAcc,
           <div style={{position:"absolute",top:-30,right:-30,width:100,height:100,background:C.primary,filter:"blur(50px)",opacity:0.2,borderRadius:"50%",animation:"pulse-neon 4s infinite",pointerEvents:"none"}}/>
           <div style={{color:C.sub,fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".15em",marginBottom:8}}>Total Net Worth</div>
           <div style={{color:C.text,fontSize:32,fontWeight:900,fontFamily:"'JetBrains Mono',monospace", letterSpacing:"-0.05em"}}>
-            <span style={{color:C.primary,marginRight:4}}>₹</span>{fmtAmt(netWorth)}
+            {fmtAmt(netWorth)}
           </div>
         </div>
       )}
